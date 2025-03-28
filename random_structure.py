@@ -35,8 +35,12 @@ VOXEL_TYPES = [0, 1, 2, 3, 4]  # Empty, Rigid, Soft, Active (+/-)
 def evaluate_fitness(robot_structure, view=False):   
     '''loads the robot into the environment, usin the alternating gait controller 
     and returns a fitness score based on how well the robot moves''' 
+    '''O fitness score reflete o quão longe o robot se consegue deslocar'''
+    if not is_connected(robot_structure):
+        return 0.0  # Penaliza robôs desconectados
+    
     try:
-        connectivity = get_full_connectivity(robot_structure)
+        connectivity = get_full_connectivity(robot_structure)  #calcula a conectividades do robot (para verificar se os voxels estão conectados)
   
         env = gym.make(SCENARIO, max_episode_steps=STEPS, body=robot_structure, connections=connectivity)
         env.reset()
@@ -132,7 +136,8 @@ def random_search():
 
 def evolutionary_algorithm():
      
-    population = [valid_robot() for individual in range (POPULATION_SIZE)]
+    #population = [valid_robot() for individual in range (POPULATION_SIZE)]
+    population = [create_random_robot() for individual in range (POPULATION_SIZE)]
     fitness_scores = [evaluate_fitness(ind) for ind in population]
 
     for generation in range (NUM_GENERATIONS):
@@ -147,7 +152,8 @@ def evolutionary_algorithm():
             offspring = flip_mutation(offspring, MUTATION_RATE)
             # If offspring is disconnected, discard it and generate a valid robot
             if not is_connected(offspring):
-                offspring = valid_robot()
+                #offspring = valid_robot()
+                offspring = create_random_robot()
             new_population.append(offspring)
 
         population = new_population
