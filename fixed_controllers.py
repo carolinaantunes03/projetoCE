@@ -1,5 +1,7 @@
 import numpy as np
 
+#definition of the fixed controllers (this code is on the paper)
+
 def alternating_gait(action_size, t):
     """Alternates actuation to mimic a walking gait."""
     action = np.zeros(action_size)
