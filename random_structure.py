@@ -11,10 +11,11 @@ import time
 
 import matplotlib.pyplot as plt
 
+
 #3.1 task
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 250  # Number of generations to evolve
+NUM_GENERATIONS = 10  # Number of generations to evolve
 MIN_GRID_SIZE = (5, 5)  # Minimum size of the robot grid
 MAX_GRID_SIZE = (5, 5)  # Maximum size of the robot grid
 STEPS = 500  
@@ -160,37 +161,37 @@ def evolutionary_algorithm():
             # If offspring is disconnected, discard it and generate a valid robot
             if not is_connected(offspring):
                 #offspring = valid_robot()
-                #offspring = create_random_robot()
-                fitness_score = 0 
-            else: 
-                fitness_score = evaluate_fitness (offspring)
+                offspring = create_random_robot()
 
             new_population.append(offspring)
-            fitness_scores.append(fitness_score)
 
         population = new_population
-        #fitness_scores = [evaluate_fitness(ind) for ind in population]
+        fitness_scores = [evaluate_fitness(ind) for ind in population]
         best_idx = np.argmax(fitness_scores)
-        #best_fitnesses = fitness_scores[best_idx]
-        avg_fitness = np.mean (fitness_scores)
-
+        #best_fitnesses_per_generation = fitness_scores[best_idx]
+        #avg_fitness_per_generation = np.mean (fitness_scores)
         best_fitness_per_generation.append(fitness_scores[best_idx])
-        avg_fitness_per_generation.append(avg_fitness)
+        avg_fitness_per_generation.append(np.mean(fitness_scores))
 
+
+        # Atualiza melhor robô de sempre
         if fitness_scores[best_idx] > best_fitness_overall:
             best_fitness_overall = fitness_scores[best_idx]
             best_robot_overall = population[best_idx]
-
-
-        print(f"Generation {generation+1}: Best Fitness = {fitness_scores[best_idx]}, Average Fitness = {avg_fitness:.2f}")
+            
+        print(f"Generation {generation+1}: Best Fitness = {fitness_scores[best_idx]}, Average Fitness = {avg_fitness_per_generation[-1]:.2f}")
+    
+    # Tempo de execução
     end_time = time.time()
     print(f"Total execution time: {end_time - start_time:.2f} seconds")
 
     avg_best_fitness = np.mean(best_fitness_per_generation)
-    print(f"Média das Best Fitnesses ao longo das gerações: {avg_best_fitness:.2f}")
-    #best_idx = np.argmax(fitness_scores)
 
-     # Criar gráfico de fitness
+    print(f"Média das Best Fitnesses ao longo das gerações: {avg_best_fitness:.2f}")
+    print(f"Best Fitness Overall: {best_fitness_overall:.2f}")
+
+    #best_idx = np.argmax(fitness_scores)
+    # Gráfico de fitness
     plt.figure(figsize=(10, 5))
     plt.plot(best_fitness_per_generation, label="Best Fitness")
     plt.plot(avg_fitness_per_generation, label="Average Fitness")
@@ -200,7 +201,6 @@ def evolutionary_algorithm():
     plt.title("Evolutionary Algorithm Progress")
     plt.show()
 
-
     return best_robot_overall, best_fitness_overall
 
 
@@ -209,21 +209,20 @@ def evolutionary_algorithm():
 # Choose which approach to run:
 if __name__ == "__main__":
     
-
     approach = input("Enter 'random' for random search or 'ea' for evolutionary algorithm: ").strip().lower()
     if approach == 'random':
         best_robot, best_fitness = random_search()
-    elif approach == 'es':
+    elif approach == 'ea':
         best_robot, best_fitness = evolutionary_algorithm()
     else:
         print("Invalid option.")
         exit()
 
-
     print("Best robot structure found:")
     print(best_robot)
     print("Best fitness score:")
     print(best_fitness)
+
 
 
     # Simulate and create a GIF for the best robot design
