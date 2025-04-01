@@ -9,6 +9,7 @@ import utils
 from fixed_controllers import *
 import time
 
+import matplotlib.pyplot as plt
 
 #3.1 task
 
@@ -135,10 +136,16 @@ def random_search():
     return best_robot, best_fitness
 
 def evolutionary_algorithm():
-     
+    start_time = time.time()
+
     #population = [valid_robot() for individual in range (POPULATION_SIZE)]
     population = [create_random_robot() for individual in range (POPULATION_SIZE)]
     fitness_scores = [evaluate_fitness(ind) for ind in population]
+
+    best_fitness_overall = -float('inf')  
+    best_robot_overall = None
+    best_fitness_per_generation = []  
+    avg_fitness_per_generation = []
 
     for generation in range (NUM_GENERATIONS):
         new_population = []
@@ -153,29 +160,57 @@ def evolutionary_algorithm():
             # If offspring is disconnected, discard it and generate a valid robot
             if not is_connected(offspring):
                 #offspring = valid_robot()
-                offspring = create_random_robot()
+                #offspring = create_random_robot()
+                fitness_score = 0 
+            else: 
+                fitness_score = evaluate_fitness (offspring)
+
             new_population.append(offspring)
+            fitness_scores.append(fitness_score)
 
         population = new_population
-        fitness_scores = [evaluate_fitness(ind) for ind in population]
+        #fitness_scores = [evaluate_fitness(ind) for ind in population]
         best_idx = np.argmax(fitness_scores)
-        best_fitnesses = fitness_scores[best_idx]
+        #best_fitnesses = fitness_scores[best_idx]
         avg_fitness = np.mean (fitness_scores)
-        print(f"Generation {generation+1}: Best Fitness = {fitness_scores[best_idx]}, Average Fitness = {avg_fitness:.2f}")
 
-    avg_best_fitness = np.mean(best_fitnesses)
+        best_fitness_per_generation.append(fitness_scores[best_idx])
+        avg_fitness_per_generation.append(avg_fitness)
+
+        if fitness_scores[best_idx] > best_fitness_overall:
+            best_fitness_overall = fitness_scores[best_idx]
+            best_robot_overall = population[best_idx]
+
+
+        print(f"Generation {generation+1}: Best Fitness = {fitness_scores[best_idx]}, Average Fitness = {avg_fitness:.2f}")
+    end_time = time.time()
+    print(f"Total execution time: {end_time - start_time:.2f} seconds")
+
+    avg_best_fitness = np.mean(best_fitness_per_generation)
     print(f"Média das Best Fitnesses ao longo das gerações: {avg_best_fitness:.2f}")
-    best_idx = np.argmax(fitness_scores)
-    return population[best_idx], fitness_scores[best_idx]
+    #best_idx = np.argmax(fitness_scores)
+
+     # Criar gráfico de fitness
+    plt.figure(figsize=(10, 5))
+    plt.plot(best_fitness_per_generation, label="Best Fitness")
+    plt.plot(avg_fitness_per_generation, label="Average Fitness")
+    plt.xlabel("Generation")
+    plt.ylabel("Fitness")
+    plt.legend()
+    plt.title("Evolutionary Algorithm Progress")
+    plt.show()
+
+
+    return best_robot_overall, best_fitness_overall
 
 
 # Example usage
 
 # Choose which approach to run:
 if __name__ == "__main__":
-    start_time = time.time()
+    
 
-    approach = input("Enter 'random' for random search or 'es' for evolutionary algorithm: ").strip().lower()
+    approach = input("Enter 'random' for random search or 'ea' for evolutionary algorithm: ").strip().lower()
     if approach == 'random':
         best_robot, best_fitness = random_search()
     elif approach == 'es':
@@ -184,16 +219,12 @@ if __name__ == "__main__":
         print("Invalid option.")
         exit()
 
-    end_time = time.time()  
-
 
     print("Best robot structure found:")
     print(best_robot)
     print("Best fitness score:")
     print(best_fitness)
 
-    total_time = end_time - start_time
-    print(f"Tempo total de execução: {total_time:.2f} segundos")
 
     # Simulate and create a GIF for the best robot design
     for _ in range(10):
