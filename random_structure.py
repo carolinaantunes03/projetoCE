@@ -21,6 +21,7 @@ MAX_GRID_SIZE = (5, 5)  # Maximum size of the robot grid
 STEPS = 500  
 POPULATION_SIZE = 20 # Number of robots per generation
 MUTATION_RATE = 0.1 # Probability of mutation
+NUM_RUNS = 5
 
 # ---- TESTING SETTINGS ----
 SCENARIOS = ['Walker-v0', 'BridgeWalker-v0'] #flat terrain locomotion AND soft ground that deforms under the robot
@@ -31,7 +32,7 @@ SCENARIO = 'Walker-v0'
 CONTROLLER = alternating_gait  #fixed controller 
 
 # ---- VOXEL TYPES ----
-VOXEL_TYPES = [0, 1, 2, 3, 4]  # Empty, Rigid, Soft, Active (+/-)
+VOXEL_TYPES = [0, 1, 2, 3, 4]  
 
 
 def evaluate_fitness(robot_structure, view=False):   
@@ -39,7 +40,7 @@ def evaluate_fitness(robot_structure, view=False):
     and returns a fitness score based on how well the robot moves''' 
     '''O fitness score reflete o quão longe o robot se consegue deslocar'''
     if not is_connected(robot_structure):
-        return 0.0  # Penaliza robôs desconectados
+        return 0.0  
     
     try:
         connectivity = get_full_connectivity(robot_structure)  #calcula a conectividades do robot (para verificar se os voxels estão conectados)
@@ -81,7 +82,7 @@ def create_random_robot():
 def valid_robot():
 
     while True:
-        robot = create_random_robot()  # Sua função que gera robôs aleatórios
+        robot = create_random_robot()  
         if is_connected(robot):
             return robot
         else:
@@ -95,11 +96,16 @@ def flip_mutation (robot_structure, MUTATION_RATE):
     for i in range (mutated_robot.shape[0]):
         for j in range (mutated_robot.shape[1]):
             if random.random() < MUTATION_RATE:
-                mutated_robot [i, j] = random.choice (VOXEL_TYPES)
+                original_voxel = mutated_robot[i, j]
+                new_voxel = random.choice (VOXEL_TYPES)
+            while new_voxel == original_voxel:
+                    new_voxel = random.choice(VOXEL_TYPES)
+                
+            mutated_robot[i, j] = new_voxel
 
     return mutated_robot
 
-def one_point_crossover (parent1, parent2):
+def one_point_crossover (parent1, parent2): #passar para vetor 
     ''' combine features from two parents to create a new offspring (one point crossover)'''
     offspring = np.copy (parent1)
 
@@ -136,7 +142,7 @@ def random_search():
     
     return best_robot, best_fitness
 
-def evolutionary_algorithm():
+def evolutionary_algorithm(elitism = False):
     start_time = time.time()
 
     #population = [valid_robot() for individual in range (POPULATION_SIZE)]
@@ -150,14 +156,26 @@ def evolutionary_algorithm():
 
     for generation in range (NUM_GENERATIONS):
         new_population = []
+        if (elitism == True):
+            sorted_indices = np.argsort(fitness_scores)[::-1]  #ordem os individuos pela fitness da maior para a menor
+            elite_count = POPULATION_SIZE // 2  #guarda os 50% melhores indivíduos da população
+            elites = [population[i] for i in sorted_indices[:elite_count]]
+            new_population.extend(elites)
+
         while len(new_population) < POPULATION_SIZE:
-            # Select parents using tournament selection
-            parent1 = tournament_selection(population, fitness_scores)
-            parent2 = tournament_selection(population, fitness_scores)
+
+            if elitism == True:
+                parent1, parent2 = elites[:2]
+            else:
+                # Select parents using tournament selection
+                parent1 = tournament_selection(population, fitness_scores)
+                parent2 = tournament_selection(population, fitness_scores)
+
             # Apply crossover to produce offspring
             offspring = one_point_crossover(parent1, parent2)
             # Apply mutation
             offspring = flip_mutation(offspring, MUTATION_RATE)
+
             # If offspring is disconnected, discard it and generate a valid robot
             if not is_connected(offspring):
                 #offspring = valid_robot()
@@ -173,25 +191,20 @@ def evolutionary_algorithm():
         best_fitness_per_generation.append(fitness_scores[best_idx])
         avg_fitness_per_generation.append(np.mean(fitness_scores))
 
-
-        # Atualiza melhor robô de sempre
         if fitness_scores[best_idx] > best_fitness_overall:
             best_fitness_overall = fitness_scores[best_idx]
             best_robot_overall = population[best_idx]
             
         print(f"Generation {generation+1}: Best Fitness = {fitness_scores[best_idx]}, Average Fitness = {avg_fitness_per_generation[-1]:.2f}")
     
-    # Tempo de execução
+   
     end_time = time.time()
     print(f"Total execution time: {end_time - start_time:.2f} seconds")
 
-    avg_best_fitness = np.mean(best_fitness_per_generation)
-
-    print(f"Média das Best Fitnesses ao longo das gerações: {avg_best_fitness:.2f}")
     print(f"Best Fitness Overall: {best_fitness_overall:.2f}")
 
     #best_idx = np.argmax(fitness_scores)
-    # Gráfico de fitness
+
     plt.figure(figsize=(10, 5))
     plt.plot(best_fitness_per_generation, label="Best Fitness")
     plt.plot(avg_fitness_per_generation, label="Average Fitness")
@@ -204,7 +217,7 @@ def evolutionary_algorithm():
     return best_robot_overall, best_fitness_overall
 
 
-# Example usage
+
 
 # Choose which approach to run:
 if __name__ == "__main__":
@@ -213,7 +226,7 @@ if __name__ == "__main__":
     if approach == 'random':
         best_robot, best_fitness = random_search()
     elif approach == 'ea':
-        best_robot, best_fitness = evolutionary_algorithm()
+        best_robot, best_fitness = evolutionary_algorithm(elitism=True) #alterar para True or False, if True não há torneio
     else:
         print("Invalid option.")
         exit()
@@ -230,5 +243,17 @@ if __name__ == "__main__":
         utils.simulate_best_robot(best_robot, scenario=SCENARIO, steps=STEPS)
     utils.create_gif(best_robot, filename='best_robot.gif', scenario=SCENARIO, steps=STEPS, controller=CONTROLLER)
 
+'''if __name__ == "__main__":
+    for run in range(NUM_RUNS):
+        #random.seed(run)
+        np.random.seed(run)
+        print(f"Run {run+1}/{NUM_RUNS}:")
+        best_robot, best_fitness = evolutionary_algorithm(elitism=True)
+        print("Best robot structure found:")
+        print(best_robot)
+        print("Best fitness score:")
+        print(best_fitness)
+        utils.simulate_best_robot(best_robot, scenario=SCENARIO, steps=STEPS)
+        utils.create_gif(best_robot, filename=f'best_robot_run{run+1}.gif', scenario=SCENARIO, steps=STEPS, controller=CONTROLLER)'''
 
 

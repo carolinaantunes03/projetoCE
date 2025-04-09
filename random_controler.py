@@ -10,9 +10,12 @@ from neural_controller import *
 NUM_GENERATIONS = 100  # Number of generations to evolve
 STEPS = 500
 SCENARIO = 'DownStepper-v0'
+
+
 SEED = 42
 np.random.seed(SEED)
 random.seed(SEED)
+torch.manual_seed(SEED)
 
 
 robot_structure = np.array([ 
