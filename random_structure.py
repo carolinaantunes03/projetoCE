@@ -25,14 +25,14 @@ import matplotlib.pyplot as plt
 
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 30  # 250  # Number of generations to evolve
+NUM_GENERATIONS = 250  # Number of generations to evolve
 MIN_GRID_SIZE = (5, 5)  # Minimum size of the robot grid
 MAX_GRID_SIZE = (5, 5)  # Maximum size of the robot grid
 STEPS = 500
 POPULATION_SIZE = 20  # Number of robots per generation
-MUTATION_RATE = 0.1  # Probability of mutation
+MUTATION_RATE = 0.05  # Probability of mutation
 
-TOURNAMENT_SIZE = 5  # Number of individuals in the tournament for selection
+TOURNAMENT_SIZE = 3  # Number of individuals in the tournament for selection
 ELITISM = True  # Whether to use elitism or not
 ELITE_SIZE = 2  # Number of elite individuals to carry over to the next generation
 
@@ -80,7 +80,8 @@ def evaluate_fitness(robot_structure, view=False):
         viewer = EvoViewer(sim)
         viewer.track_objects("robot")
         t_reward = 0
-        action_size = sim.get_dim_action_space("robot")  # Get correct action size
+        action_size = sim.get_dim_action_space(
+            "robot")  # Get correct action size
         for t in range(STEPS):
             # Update actuation before stepping
             actuation = CONTROLLER(action_size, t)
@@ -164,6 +165,9 @@ def random_search(population_size=POPULATION_SIZE):
     best_reward = -float("inf")
 
     for it in range(NUM_GENERATIONS):
+        best_gen_fitness = -float("inf")
+        best_gen_reward = -float("inf")
+
         population = [create_random_robot() for _ in range(population_size)]
         fitness_scores = []
         rewards = []
@@ -181,17 +185,24 @@ def random_search(population_size=POPULATION_SIZE):
             best_fitness = fitness_score
             best_robot = robot
 
-        # save best reward in task
+        if fitness_score > best_gen_fitness:
+            best_gen_fitness = fitness_score
+
+        # save best reward overall
         if reward > best_reward:
             best_reward = reward
 
+        # save best reward for this generation
+        if reward > best_gen_reward:
+            best_gen_reward = reward
+
         print(
-            f"Gen. {it + 1} | Curr.Fit. = {fitness_score:.2f} | BestFit. = {best_fitness:.2f} | BestReward = {best_reward:.2f}"
+            f"Gen. {it + 1} | Curr.Fit. = {fitness_score:.2f} | BestFitGen. = {best_gen_fitness:.2f} | BestFitOvr. = {best_fitness:.2f} | Avg.Fit. = {np.mean(fitness_scores):.2f} | BestRewardGen = {best_gen_reward:.2f} | Avg.Reward = {np.mean(rewards):.2f}"
         )
 
-        best_fitness_history.append(best_fitness)
+        best_fitness_history.append(best_gen_fitness)
         average_fitness_history.append(np.mean(fitness_scores))
-        best_reward_history.append(best_reward)
+        best_reward_history.append(best_gen_reward)
         average_reward_history.append(np.mean(rewards))
 
     return (
@@ -208,6 +219,7 @@ def random_search(population_size=POPULATION_SIZE):
 
 
 def evolutionary_algorithm(elitism=ELITISM):
+
     population = [valid_robot() for individual in range(POPULATION_SIZE)]
     # population = [create_random_robot() for individual in range(POPULATION_SIZE)]
     fitness_scores, reward_scores = evaluate_population_fitness(population)
@@ -226,6 +238,8 @@ def evolutionary_algorithm(elitism=ELITISM):
     average_reward_history = []
 
     for generation in range(NUM_GENERATIONS):
+        best_gen_fitness = -float("inf")
+        best_gen_reward = -float("inf")
 
         new_population = []
 
@@ -254,8 +268,8 @@ def evolutionary_algorithm(elitism=ELITISM):
 
             # If offspring is disconnected, discard it and generate a valid robot
             if not is_connected(offspring):
-                # offspring = valid_robot()
-                offspring = create_random_robot()
+                offspring = valid_robot()
+                # offspring = create_random_robot()
 
             new_population.append(offspring)
 
@@ -266,22 +280,28 @@ def evolutionary_algorithm(elitism=ELITISM):
         best_reward_idx = np.argmax(rewards)
 
         if fitness_scores[best_fitness_idx] > best_fitness:
-            best_fitness_overall = fitness_scores[best_fitness_idx]
+            best_fitness = fitness_scores[best_fitness_idx]
             best_robot = population[best_fitness_idx]
+
+        if fitness_scores[best_fitness_idx] > best_gen_fitness:
+            best_gen_fitness = fitness_scores[best_fitness_idx]
 
         if rewards[best_reward_idx] > best_reward:
             best_reward = rewards[best_reward_idx]
 
+        if rewards[best_reward_idx] > best_gen_reward:
+            best_gen_reward = rewards[best_reward_idx]
+
         average_fitness = np.mean(fitness_scores)
         average_reward = np.mean(rewards)
 
-        best_fitness_history.append(best_fitness_overall)
+        best_fitness_history.append(best_gen_fitness)
         average_fitness_history.append(average_fitness)
-        best_reward_history.append(best_reward)
+        best_reward_history.append(best_gen_reward)
         average_reward_history.append(average_reward)
 
         print(
-            f"Gen. {generation + 1} | Curr.Fit. = {fitness_scores[best_fitness_idx]:.2f} | BestFit. = {best_fitness_overall:.2f} | Avg.Fit. = {average_fitness:.2f} | BestReward = {best_reward:.2f} | Avg.Reward = {average_reward:.2f}"
+            f"Gen. {generation + 1} | Curr.Fit. = {fitness_scores[best_fitness_idx]:.2f} | BestFitGen. = {best_fitness:.2f} | BestFitOvr. = {best_fitness:.2f} | Avg.Fit. = {average_fitness:.2f} | BestRewardGen = {best_reward:.2f} | Avg.Reward = {average_reward:.2f}"
         )
 
     return (
