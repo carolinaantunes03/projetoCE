@@ -15,6 +15,8 @@ from evogym import (
     get_full_connectivity,
     is_connected,
 )
+from crossover_operators import one_point_crossover
+from mutation_operators import flip_mutation
 import utils
 from fixed_controllers import *
 import time
@@ -23,12 +25,16 @@ import matplotlib.pyplot as plt
 
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 5  # 250  # Number of generations to evolve
+NUM_GENERATIONS = 30  # 250  # Number of generations to evolve
 MIN_GRID_SIZE = (5, 5)  # Minimum size of the robot grid
 MAX_GRID_SIZE = (5, 5)  # Maximum size of the robot grid
 STEPS = 500
 POPULATION_SIZE = 20  # Number of robots per generation
 MUTATION_RATE = 0.1  # Probability of mutation
+
+TOURNAMENT_SIZE = 5  # Number of individuals in the tournament for selection
+ELITISM = True  # Whether to use elitism or not
+ELITE_SIZE = 2  # Number of elite individuals to carry over to the next generation
 
 
 # ---- TESTING SETTINGS ----
@@ -98,6 +104,19 @@ def evaluate_fitness(robot_structure, view=False):
         return 0.0
 
 
+def evaluate_population_fitness(population) -> tuple:
+    """Evaluate the fitness of a population of robots."""
+    fitness_scores = []
+    rewards = []
+
+    for robot in population:
+        fitness_score, reward = evaluate_fitness(robot)
+        fitness_scores.append(fitness_score)
+        rewards.append(reward)
+
+    return fitness_scores, rewards
+
+
 def create_random_robot():
     """Generate a valid random robot structure."""
 
@@ -120,39 +139,6 @@ def valid_robot():
             print("Estrutura desconectada, descartada.")
 
 
-def flip_mutation(robot_structure, MUTATION_RATE):
-    """Rabdomly modifies some voxels in a robot"""
-    mutated_robot = np.copy(robot_structure)
-
-    for i in range(mutated_robot.shape[0]):
-        for j in range(mutated_robot.shape[1]):
-            if random.random() < MUTATION_RATE:
-                original_voxel = mutated_robot[i, j]
-                new_voxel = random.choice(VOXEL_TYPES)
-            while new_voxel == original_voxel:
-                new_voxel = random.choice(VOXEL_TYPES)
-
-            mutated_robot[i, j] = new_voxel
-
-    return mutated_robot
-
-
-def one_point_crossover(parent1, parent2):
-    """combine features from two parents to create a new offspring (one point crossover)"""
-    # (5,5) -> vector
-    parent1 = parent1.flatten()
-    parent2 = parent2.flatten()
-
-    crossover_point = random.randint(0, len(parent1) - 1)
-
-    offspring = np.concatenate((parent1[:crossover_point], parent2[crossover_point:]))
-
-    # vector -> (5,5)
-    offspring = offspring.reshape((parent1.shape[0], parent1.shape[1]))
-
-    return offspring
-
-
 def tournament_selection(population, fitness_scores, k=5):
     selected_indices = random.sample(range(len(population)), k)
     best_idx = max(selected_indices, key=lambda idx: fitness_scores[idx])
@@ -163,7 +149,7 @@ def tournament_selection(population, fitness_scores, k=5):
 # ----------Random Search--------------------------------------------------------
 
 
-def random_search():
+def random_search(population_size=POPULATION_SIZE):
     """Perform a random search to find the best robot structure."""
     """by evaluting the fitness of random robots, keeps track of the best-performing
     structure and simulates the best structure at the end """
@@ -178,8 +164,18 @@ def random_search():
     best_reward = -float("inf")
 
     for it in range(NUM_GENERATIONS):
-        robot = create_random_robot()
-        fitness_score, reward = evaluate_fitness(robot)
+        population = [create_random_robot() for _ in range(population_size)]
+        fitness_scores = []
+        rewards = []
+        for robot in population:
+            fitness_score, reward = evaluate_fitness(robot)
+            fitness_scores.append(fitness_score)
+            rewards.append(reward)
+
+        max_fitness_idx = np.argmax(fitness_scores)
+        robot = population[max_fitness_idx]
+        fitness_score = fitness_scores[max_fitness_idx]
+        reward = rewards[max_fitness_idx]
 
         if fitness_score > best_fitness:
             best_fitness = fitness_score
@@ -190,13 +186,13 @@ def random_search():
             best_reward = reward
 
         print(
-            f"It. {it + 1}| Curr.Fit. = {fitness_score:.2f}| BestFit. = {best_fitness:.2f}| BestReward = {best_reward:.2f}"
+            f"Gen. {it + 1} | Curr.Fit. = {fitness_score:.2f} | BestFit. = {best_fitness:.2f} | BestReward = {best_reward:.2f}"
         )
 
         best_fitness_history.append(best_fitness)
-        average_fitness_history.append(fitness_score)
-        best_reward_history.append(reward)
-        average_reward_history.append(reward)
+        average_fitness_history.append(np.mean(fitness_scores))
+        best_reward_history.append(best_reward)
+        average_reward_history.append(np.mean(rewards))
 
     return (
         best_robot,
@@ -211,43 +207,50 @@ def random_search():
 # ----------Evolutionary Algorithm--------------------------------------------------------
 
 
-def evolutionary_algorithm(elitism=False):
-    start_time = time.time()
+def evolutionary_algorithm(elitism=ELITISM):
+    population = [valid_robot() for individual in range(POPULATION_SIZE)]
+    # population = [create_random_robot() for individual in range(POPULATION_SIZE)]
+    fitness_scores, reward_scores = evaluate_population_fitness(population)
 
-    # population = [valid_robot() for individual in range (POPULATION_SIZE)]
-    population = [create_random_robot() for individual in range(POPULATION_SIZE)]
-    fitness_scores = [evaluate_fitness(ind) for ind in population]
+    # initialize overall best tracking
+    best_initial_fitness_idx = np.argmax(fitness_scores)
+    best_initial_reward_idx = np.argmax(reward_scores)
 
-    best_fitness_overall = -float("inf")
-    best_robot_overall = None
-    best_fitness_per_generation = []
-    avg_fitness_per_generation = []
+    best_reward = reward_scores[best_initial_reward_idx]
+    best_fitness = fitness_scores[best_initial_fitness_idx]
+    best_robot = population[best_initial_fitness_idx]
+
+    best_fitness_history = []
+    average_fitness_history = []
+    best_reward_history = []
+    average_reward_history = []
 
     for generation in range(NUM_GENERATIONS):
+
         new_population = []
+
         if elitism == True:
-            sorted_indices = np.argsort(fitness_scores)[
-                ::-1
-            ]  # ordem os individuos pela fitness da maior para a menor
-            elite_count = (
-                POPULATION_SIZE // 2
-            )  # guarda os 50% melhores indivíduos da população
-            elites = [population[i] for i in sorted_indices[:elite_count]]
+            # Get indices sorted by fitness
+            sorted_indices = np.argsort(fitness_scores)[::-1]
+
+            elites = [population[i] for i in sorted_indices[:ELITE_SIZE]]
+
+            # Add elites to the new population
             new_population.extend(elites)
 
         while len(new_population) < POPULATION_SIZE:
 
-            if elitism == True:
-                parent1, parent2 = elites[:2]
-            else:
-                # Select parents using tournament selection
-                parent1 = tournament_selection(population, fitness_scores)
-                parent2 = tournament_selection(population, fitness_scores)
+            # *************************************************************************************
+            # Select parents using tournament selection
+            parent1 = tournament_selection(population, fitness_scores)
+            parent2 = tournament_selection(population, fitness_scores)
 
             # Apply crossover to produce offspring
             offspring = one_point_crossover(parent1, parent2)
             # Apply mutation
             offspring = flip_mutation(offspring, MUTATION_RATE)
+
+            # **************************************************************************************
 
             # If offspring is disconnected, discard it and generate a valid robot
             if not is_connected(offspring):
@@ -257,38 +260,38 @@ def evolutionary_algorithm(elitism=False):
             new_population.append(offspring)
 
         population = new_population
-        fitness_scores = [evaluate_fitness(ind) for ind in population]
-        best_idx = np.argmax(fitness_scores)
-        # best_fitnesses_per_generation = fitness_scores[best_idx]
-        # avg_fitness_per_generation = np.mean (fitness_scores)
-        best_fitness_per_generation.append(fitness_scores[best_idx])
-        avg_fitness_per_generation.append(np.mean(fitness_scores))
+        fitness_scores, rewards = evaluate_population_fitness(population)
 
-        if fitness_scores[best_idx] > best_fitness_overall:
-            best_fitness_overall = fitness_scores[best_idx]
-            best_robot_overall = population[best_idx]
+        best_fitness_idx = np.argmax(fitness_scores)
+        best_reward_idx = np.argmax(rewards)
+
+        if fitness_scores[best_fitness_idx] > best_fitness:
+            best_fitness_overall = fitness_scores[best_fitness_idx]
+            best_robot = population[best_fitness_idx]
+
+        if rewards[best_reward_idx] > best_reward:
+            best_reward = rewards[best_reward_idx]
+
+        average_fitness = np.mean(fitness_scores)
+        average_reward = np.mean(rewards)
+
+        best_fitness_history.append(best_fitness_overall)
+        average_fitness_history.append(average_fitness)
+        best_reward_history.append(best_reward)
+        average_reward_history.append(average_reward)
 
         print(
-            f"Generation {generation+1}: Best Fitness = {fitness_scores[best_idx]}, Average Fitness = {avg_fitness_per_generation[-1]:.2f}"
+            f"Gen. {generation + 1} | Curr.Fit. = {fitness_scores[best_fitness_idx]:.2f} | BestFit. = {best_fitness_overall:.2f} | Avg.Fit. = {average_fitness:.2f} | BestReward = {best_reward:.2f} | Avg.Reward = {average_reward:.2f}"
         )
 
-    end_time = time.time()
-    print(f"Total execution time: {end_time - start_time:.2f} seconds")
-
-    print(f"Best Fitness Overall: {best_fitness_overall:.2f}")
-
-    # best_idx = np.argmax(fitness_scores)
-
-    plt.figure(figsize=(10, 5))
-    plt.plot(best_fitness_per_generation, label="Best Fitness")
-    plt.plot(avg_fitness_per_generation, label="Average Fitness")
-    plt.xlabel("Generation")
-    plt.ylabel("Fitness")
-    plt.legend()
-    plt.title("Evolutionary Algorithm Progress")
-    plt.show()
-
-    return best_robot_overall, best_fitness_overall
+    return (
+        best_robot,
+        best_fitness,
+        best_fitness_history,
+        average_fitness_history,
+        best_reward_history,
+        average_reward_history,
+    )
 
 
 def setup_run(seed):
@@ -305,7 +308,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "Random_Search_Test",
+        "name": "Evolutionary_Algorithm_Test",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -315,6 +318,9 @@ if __name__ == "__main__":
         "controller": CONTROLLER.__name__,
         "scenario": SCENARIO,
         "time": time.strftime("D%d_M%m_%H_%M"),
+        "elitism": ELITISM,
+        "elitism_size": ELITE_SIZE,
+        "tournament_size": TOURNAMENT_SIZE,
     }
 
     if not os.path.exists(results_folder):
@@ -371,7 +377,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = random_search()
+        ) = evolutionary_algorithm(elitism=ELITISM)
         # **********************************************************************
         end_time = time.time()
 
