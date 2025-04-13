@@ -50,7 +50,7 @@ CONTROLLERS = {
 }  # we should choose only ONE but we can test all
 
 SCENARIO = "Walker-v0"
-CONTROLLER = alternating_gait  # fixed controller
+CONTROLLER = hopping_motion  # fixed controller
 
 # ---- VOXEL TYPES ----
 VOXEL_TYPES = [0, 1, 2, 3, 4]

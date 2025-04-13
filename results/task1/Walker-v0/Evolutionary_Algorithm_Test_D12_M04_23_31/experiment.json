@@ -1,0 +1,14 @@
+{
+    "name": "Evolutionary_Algorithm_Test",
+    "repetitions": 5,
+    "num_generations": 250,
+    "population_size": 20,
+    "mutation_rate": 0.05,
+    "steps": 500,
+    "controller": "hopping_motion",
+    "scenario": "Walker-v0",
+    "time": "D12_M04_23_31",
+    "elitism": true,
+    "elitism_size": 2,
+    "tournament_size": 3
+}
