@@ -103,7 +103,7 @@ def evaluate_fitness(robot_structure, view=False):
         viewer.close()
         env.close()
 
-        fitness_val = t_reward + 10 * max_step_reward
+        fitness_val = t_reward + 50 * max_step_reward
 
         return fitness_val, t_reward  # return fitness and reward
 
@@ -124,7 +124,7 @@ def evaluate_population_fitness(population) -> tuple:
         try:
             # Ensure the main script execution is guarded by if __name__ == "__main__":
             # This is crucial for multiprocessing on Windows.
-            with multiprocessing.Pool(processes=4) as pool:
+            with multiprocessing.Pool(processes=8) as pool:
                 results = pool.map(evaluate_fitness, population)
 
             for fitness_score, reward in results:
