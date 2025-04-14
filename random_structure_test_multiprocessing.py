@@ -6,6 +6,7 @@ import gymnasium as gym
 from evogym.envs import *
 import torch
 import time
+import multiprocessing
 
 from evogym import (
     EvoWorld,
@@ -25,16 +26,16 @@ import matplotlib.pyplot as plt
 
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 25  # Number of generations to evolve
+NUM_GENERATIONS = 250  # Number of generations to evolve
 MIN_GRID_SIZE = (5, 5)  # Minimum size of the robot grid
 MAX_GRID_SIZE = (5, 5)  # Maximum size of the robot grid
 STEPS = 500
-POPULATION_SIZE = 7  # Number of robots per generation
+POPULATION_SIZE = 20  # Number of robots per generation
 MUTATION_RATE = 0.05  # Probability of mutation
 
-TOURNAMENT_SIZE = 2  # Number of individuals in the tournament for selection
+TOURNAMENT_SIZE = 3  # Number of individuals in the tournament for selection
 ELITISM = True  # Whether to use elitism or not
-ELITE_SIZE = 1  # Number of elite individuals to carry over to the next generation
+ELITE_SIZE = 2  # Number of elite individuals to carry over to the next generation
 
 
 # ---- TESTING SETTINGS ----
@@ -115,10 +116,34 @@ def evaluate_population_fitness(population) -> tuple:
     fitness_scores = []
     rewards = []
 
-    for robot in population:
-        fitness_score, reward = evaluate_fitness(robot)
-        fitness_scores.append(fitness_score)
-        rewards.append(reward)
+    # Use more than one process, e.g., the number of available CPU cores
+    # Be mindful of resource limits and potential overhead
+    # Use number of robots or CPU cores, whichever is smaller
+    num_processes = min(len(population), os.cpu_count())
+    if num_processes > 1:  # Only use multiprocessing if beneficial
+        try:
+            # Ensure the main script execution is guarded by if __name__ == "__main__":
+            # This is crucial for multiprocessing on Windows.
+            with multiprocessing.Pool(processes=4) as pool:
+                results = pool.map(evaluate_fitness, population)
+
+            for fitness_score, reward in results:
+                fitness_scores.append(fitness_score)
+                rewards.append(reward)
+        except Exception as e:
+            print(
+                f"Multiprocessing failed: {e}. Falling back to sequential execution.")
+            # Fallback to sequential execution if multiprocessing fails
+            for robot in population:
+                fitness_score, reward = evaluate_fitness(robot)
+                fitness_scores.append(fitness_score)
+                rewards.append(reward)
+    else:
+        # Execute sequentially if only one process is needed or available
+        for robot in population:
+            fitness_score, reward = evaluate_fitness(robot)
+            fitness_scores.append(fitness_score)
+            rewards.append(reward)
 
     return fitness_scores, rewards
 
@@ -327,13 +352,16 @@ def setup_run(seed):
 
 # Choose which approach to run:
 if __name__ == "__main__":
+
+    multiprocessing.freeze_support()  # For Windows compatibility
+
     RUN_SEEDS = [6363, 9374, 2003, 198, 2782]
     results_folder = "results/task1"
 
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "RandomS_HopMotion",
+        "name": "Test_NewFitnessF",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,

@@ -1,0 +1,14 @@
+{
+    "name": "RandomS_HopMotion",
+    "repetitions": 5,
+    "num_generations": 25,
+    "population_size": 7,
+    "mutation_rate": 0.05,
+    "steps": 500,
+    "controller": "hopping_motion",
+    "scenario": "Walker-v0",
+    "time": "D14_M04_19_15",
+    "elitism": true,
+    "elitism_size": 1,
+    "tournament_size": 2
+}
