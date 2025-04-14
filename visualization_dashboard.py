@@ -475,3 +475,4 @@ else:
 # 2. Make sure you have the necessary libraries: pip install streamlit pandas plotly Pillow
 # 3. Open your terminal in the project directory.
 # 4. Run: streamlit run visualization_dashboard.py
+

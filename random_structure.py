@@ -323,12 +323,12 @@ def setup_run(seed):
 # Choose which approach to run:
 if __name__ == "__main__":
     RUN_SEEDS = [6363, 9374, 2003, 198, 2782]
-    results_folder = "results\\task1"
+    results_folder = "results/task1"
 
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "Evolutionary_Algorithm_Test",
+        "name": "RandomS_HopMotion",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -397,7 +397,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = evolutionary_algorithm(elitism=ELITISM)
+        ) = random_search()
         # **********************************************************************
         end_time = time.time()
 
