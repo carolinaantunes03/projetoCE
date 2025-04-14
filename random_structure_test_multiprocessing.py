@@ -148,7 +148,7 @@ def evaluate_population_fitness(population) -> tuple:
         try:
             # Ensure the main script execution is guarded by if __name__ == "__main__":
             # This is crucial for multiprocessing on Windows.
-            with multiprocessing.Pool(processes=4) as pool:
+            with multiprocessing.Pool(processes=8) as pool:
                 results = pool.map(evaluate_fitness, population)
 
             for fitness_score, reward in results:

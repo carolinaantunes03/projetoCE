@@ -7,7 +7,7 @@
     "steps": 500,
     "controller": "hopping_motion",
     "scenario": "Walker-v0",
-    "time": "D14_M04_19_53",
+    "time": "D14_M04_20_40",
     "elitism": true,
     "elitism_size": 2,
     "tournament_size": 3
