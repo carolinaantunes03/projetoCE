@@ -81,10 +81,13 @@ def evaluate_fitness(robot_structure, view=False):
         viewer = EvoViewer(sim)
         viewer.track_objects("robot")
         t_reward = 0
-        max_velocity = 0.0
+        t_velocity_x = 0.0
+        t_velocity_y = 0.0
         max_step_reward = 0.0
         action_size = sim.get_dim_action_space(
             "robot")  # Get correct action size
+
+        t = 0
         for t in range(STEPS):
 
             # Update actuation before stepping
@@ -92,7 +95,25 @@ def evaluate_fitness(robot_structure, view=False):
             if view:
                 viewer.render("screen")
             ob, reward, terminated, truncated, info = env.step(actuation)
+
+            time = sim.get_time()
+
+            vel = sim.object_vel_at_time(time, "robot")
+
             t_reward += reward
+
+            # vel.shape = (2,n) velocities in x and y direction for each voxel
+
+            # From paper:
+            # let vo be a vector of length 2 that represents the velocity of the center of mass of an object
+            # o in the simulation at time t. vox and voy denote the x and y components of this vector, respectively. vo
+            # is computed by averaging the velocities of all the point-masses that make up object o at time t
+
+            # Average velocity of the robot at time t
+            vel_at_t = np.mean(vel, axis=1)
+
+            t_velocity_x += vel_at_t[0]
+            t_velocity_y += vel_at_t[1]
 
             max_step_reward = max(max_step_reward, reward)
 
@@ -103,7 +124,10 @@ def evaluate_fitness(robot_structure, view=False):
         viewer.close()
         env.close()
 
-        fitness_val = t_reward + 10 * max_step_reward
+        avg_velocity_x = t_velocity_x / t
+        avg_velocity_y = t_velocity_y / t
+
+        fitness_val = t_reward + 0.1 * avg_velocity_x
 
         return fitness_val, t_reward  # return fitness and reward
 
@@ -361,7 +385,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "Test_NewFitnessF",
+        "name": "Test_NewFitnessVelocityX",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
