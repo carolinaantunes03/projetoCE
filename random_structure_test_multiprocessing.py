@@ -17,7 +17,7 @@ from evogym import (
     is_connected,
 )
 from crossover_operators import one_point_crossover
-from mutation_operators import flip_mutation
+from mutation_operators import flip_mutation, swap_mutation
 import utils
 from fixed_controllers import *
 import time
@@ -316,7 +316,7 @@ def evolutionary_algorithm(elitism=ELITISM):
             # Apply crossover to produce offspring
             offspring = one_point_crossover(parent1, parent2)
             # Apply mutation
-            offspring = flip_mutation(offspring, MUTATION_RATE)
+            offspring = swap_mutation(offspring, MUTATION_RATE)
 
             # **************************************************************************************
 
@@ -385,7 +385,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "Test_NewFitnessVelocityX",
+        "name": "Fitness_Velocity_EA_Hop",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,

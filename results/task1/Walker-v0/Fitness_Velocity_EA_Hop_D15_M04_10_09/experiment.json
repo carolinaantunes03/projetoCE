@@ -1,0 +1,14 @@
+{
+    "name": "Fitness_Velocity_EA_Hop",
+    "repetitions": 5,
+    "num_generations": 250,
+    "population_size": 20,
+    "mutation_rate": 0.05,
+    "steps": 500,
+    "controller": "hopping_motion",
+    "scenario": "Walker-v0",
+    "time": "D15_M04_10_09",
+    "elitism": true,
+    "elitism_size": 2,
+    "tournament_size": 3
+}
