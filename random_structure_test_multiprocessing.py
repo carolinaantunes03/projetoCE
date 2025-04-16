@@ -31,9 +31,9 @@ MIN_GRID_SIZE = (5, 5)  # Minimum size of the robot grid
 MAX_GRID_SIZE = (5, 5)  # Maximum size of the robot grid
 STEPS = 500
 POPULATION_SIZE = 20  # Number of robots per generation
-MUTATION_RATE = 0.05  # Probability of mutation
+MUTATION_RATE = 0.15  # Probability of mutation
 
-TOURNAMENT_SIZE = 3  # Number of individuals in the tournament for selection
+TOURNAMENT_SIZE = 5  # Number of individuals in the tournament for selection
 ELITISM = True  # Whether to use elitism or not
 ELITE_SIZE = 2  # Number of elite individuals to carry over to the next generation
 
@@ -314,9 +314,9 @@ def evolutionary_algorithm(elitism=ELITISM):
             parent2 = tournament_selection(population, fitness_scores)
 
             # Apply crossover to produce offspring
-            offspring = uniform_crossover(parent1, parent2)
+            offspring = one_point_crossover(parent1, parent2)
             # Apply mutation
-            offspring = swap_mutation(offspring, MUTATION_RATE)
+            offspring = flip_mutation(offspring, MUTATION_RATE)
 
             # **************************************************************************************
 
