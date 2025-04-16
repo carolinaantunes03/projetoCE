@@ -16,7 +16,7 @@ from evogym import (
     get_full_connectivity,
     is_connected,
 )
-from crossover_operators import one_point_crossover
+from crossover_operators import one_point_crossover, uniform_crossover
 from mutation_operators import flip_mutation, swap_mutation
 import utils
 from fixed_controllers import *
@@ -314,7 +314,7 @@ def evolutionary_algorithm(elitism=ELITISM):
             parent2 = tournament_selection(population, fitness_scores)
 
             # Apply crossover to produce offspring
-            offspring = one_point_crossover(parent1, parent2)
+            offspring = uniform_crossover(parent1, parent2)
             # Apply mutation
             offspring = swap_mutation(offspring, MUTATION_RATE)
 
@@ -385,7 +385,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "Fitness_Velocity_EA_Hop",
+        "name": "Fitness_Velocity_EA_Flip_Uni_Hop",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
