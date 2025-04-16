@@ -174,6 +174,60 @@ def plot_history(all_run_data, history_key, title):
     return fig
 
 
+def load_all_experiments_summary(task, env):
+    """
+    Load summary metrics for all experiments in a task/environment combination
+    """
+    summary_data = []
+    env_path = os.path.join(BASE_RESULTS_DIR, task, env)
+
+    try:
+        experiment_folders = [d for d in os.listdir(env_path)
+                              if os.path.isdir(os.path.join(env_path, d))]
+        # Sort by name, newest first if timestamped
+        experiment_folders.sort(reverse=True)
+    except Exception as e:
+        st.error(f"Error listing experiments in {env_path}: {e}")
+        return []
+
+    for exp_name in experiment_folders:
+        exp_path = os.path.join(env_path, exp_name)
+        exp_data = load_experiment_data(exp_path)
+
+        if exp_data:
+            # Calculate summary metrics
+            num_runs = len(exp_data)
+
+            # Extract final best fitness and reward values
+            final_best_fitness = [run['best_fitness_history'][-1]
+                                  for run in exp_data if run.get('best_fitness_history')]
+            final_best_reward = [run['best_reward_history'][-1]
+                                 for run in exp_data if run.get('best_reward_history')]
+
+            # Calculate statistics if data is available
+            fitness_mean = statistics.mean(
+                final_best_fitness) if final_best_fitness else None
+            fitness_std = statistics.stdev(final_best_fitness) if final_best_fitness and len(
+                final_best_fitness) > 1 else 0
+
+            reward_mean = statistics.mean(
+                final_best_reward) if final_best_reward else None
+            reward_std = statistics.stdev(final_best_reward) if final_best_reward and len(
+                final_best_reward) > 1 else 0
+
+            # Add to summary data
+            summary_data.append({
+                'Experiment': exp_name,
+                'Runs': num_runs,
+                'Best Fitness (Mean)': fitness_mean,
+                'Best Fitness (Std)': fitness_std,
+                'Best Reward (Mean)': reward_mean,
+                'Best Reward (Std)': reward_std,
+            })
+
+    return summary_data
+
+
 def plot_multiple_histories(all_run_data, history_keys_map, title):
     """
     Creates a Plotly line chart comparing multiple history keys.
@@ -347,59 +401,119 @@ if selected_task and selected_env:
 
 
 # --- Main Area ---
+# --- Main Area ---
+if selected_task and selected_env:
+    st.header(f"Results Summary: {selected_task} / {selected_env}")
+
+    # Load and display summary of all experiments
+    with st.spinner(f"Loading experiment summaries for {selected_task}/{selected_env}..."):
+        summary_data = load_all_experiments_summary(
+            selected_task, selected_env)
+
+    if summary_data:
+        st.subheader("All Experiments Summary")
+
+        # Convert data to pandas DataFrame for better display and sorting
+        df = pd.DataFrame(summary_data)
+
+        # Format numeric columns
+        for col in ['Best Fitness (Mean)', 'Best Fitness (Std)', 'Best Reward (Mean)', 'Best Reward (Std)']:
+            if col in df.columns:
+                df[col] = df[col].apply(
+                    lambda x: f"{x:.4f}" if x is not None else "N/A")
+
+        # Add a formatted column combining mean ± std for compactness
+        if 'Best Fitness (Mean)' in df.columns and 'Best Fitness (Std)' in df.columns:
+            df['Avg. Best Fitness (± std)'] = df.apply(
+                lambda row: f"{row['Best Fitness (Mean)']} ± {row['Best Fitness (Std)']}"
+                if row['Best Fitness (Mean)'] != "N/A" else "N/A", axis=1)
+
+        if 'Best Reward (Mean)' in df.columns and 'Best Reward (Std)' in df.columns:
+            df['Avg. Best Reward (± std)'] = df.apply(
+                lambda row: f"{row['Best Reward (Mean)']} ± {row['Best Reward (Std)']}"
+                if row['Best Reward (Mean)'] != "N/A" else "N/A", axis=1)
+
+        # Select columns for display
+        display_cols = ['Experiment', 'Runs',
+                        'Avg. Best Fitness (± std)', 'Avg. Best Reward (± std)']
+        display_df = df[display_cols]
+
+        # Display the table with formatting
+        st.dataframe(display_df, use_container_width=True)
+
+        # Add a selection mechanism below the table
+        st.write("**Select an experiment from the table to view details:**")
+        experiment_options = df['Experiment'].tolist()
+        table_selected_experiment = st.selectbox(
+            "Choose experiment:",
+            options=experiment_options,
+            key="table_experiment_selector",
+            label_visibility="collapsed"
+        )
+
+        # If an experiment is selected from the dropdown, use it
+        if table_selected_experiment:
+            # Use this selection for the detailed view below
+            selected_experiment_name = table_selected_experiment
+
+            # Display experiment details below
+            if selected_task and selected_env and selected_experiment_name:
+                experiment_path = os.path.join(
+                    BASE_RESULTS_DIR, selected_task, selected_env, selected_experiment_name)
+
+                # Load experiment data
+                with st.spinner(f"Loading data for {selected_experiment_name}..."):
+                    experiment_runs_data = load_experiment_data(
+                        experiment_path)
+                    experiment_config = load_experiment_config(experiment_path)
+
+    else:
+        st.info("No experiment data found.")
+
+
+# Load experiment-specific data only when an experiment is selected
 if selected_task and selected_env and selected_experiment_name:
-    # Construct the full path to the selected experiment
-    selected_experiment_folder = os.path.join(
+    experiment_path = os.path.join(
         BASE_RESULTS_DIR, selected_task, selected_env, selected_experiment_name)
 
-    st.header(
-        f"Results: {selected_task} / {selected_env} / {selected_experiment_name}")
+    # Load experiment data
+    with st.spinner(f"Loading data for {selected_experiment_name}..."):
+        experiment_runs_data = load_experiment_data(experiment_path)
+        experiment_config = load_experiment_config(experiment_path)
 
-    # Load experiment config
-    experiment_config = load_experiment_config(selected_experiment_folder)
-    if experiment_config:
-        with st.expander("Experiment Configuration"):
-            st.json(experiment_config)
+    # Now we can safely use experiment_runs_data
+    if experiment_runs_data:
+        # --- Display Metrics ---
+        st.subheader("Summary Metrics (Across Runs)")
+        final_best_fitness = [run['best_fitness_history'][-1]
+                              for run in experiment_runs_data if run.get('best_fitness_history')]
+        final_best_reward = [run['best_reward_history'][-1]
+                             for run in experiment_runs_data if run.get('best_reward_history')]
 
-    # Load data for the selected experiment
-    with st.spinner(f"Loading run data for {selected_experiment_name}..."):
-        experiment_runs_data = load_experiment_data(selected_experiment_folder)
+        col1, col2, col3 = st.columns(3)
+        num_runs = len(experiment_runs_data)
+        with col1:
+            st.metric("Number of Runs", num_runs)
+        with col2:
+            if final_best_fitness:
+                mean_final_best = statistics.mean(final_best_fitness)
+                std_final_best = statistics.stdev(
+                    final_best_fitness) if num_runs > 1 else 0
+                st.metric("Avg. Best Overall Fitness",
+                          f"{mean_final_best:.4f} ± {std_final_best:.4f}")
+            else:
+                st.metric("Avg. Best Overall Fitness", "N/A")
+        with col3:
+            if final_best_reward:
+                mean_final_reward = statistics.mean(final_best_reward)
+                std_final_reward = statistics.stdev(
+                    final_best_reward) if num_runs > 1 else 0
+                st.metric("Avg. Best Overall Reward",
+                          f"{mean_final_reward:.4f} ± {std_final_reward:.4f}")
+            else:
+                st.metric("Avg. Best Overall Reward", "N/A", delta_color="off")
 
-    if not experiment_runs_data:
-        st.warning("No valid run data found for this experiment.")
-        st.stop()
-
-    # --- Display Metrics ---
-    st.subheader("Summary Metrics (Across Runs)")
-    execution_times = [run['execution_time']
-                       for run in experiment_runs_data if 'execution_time' in run and run['execution_time'] is not None]
-    final_best_fitness = [run['best_fitness_history'][-1]
-                          for run in experiment_runs_data if run.get('best_fitness_history')]
-
-    col1, col2, col3 = st.columns(3)
-    num_runs = len(experiment_runs_data)
-    with col1:
-        st.metric("Number of Runs", num_runs)
-    with col2:
-        if execution_times:
-            mean_time_s = statistics.mean(execution_times)
-            std_time_s = statistics.stdev(
-                execution_times) if num_runs > 1 else 0
-            mean_time_h = mean_time_s / 3600
-            std_time_h = std_time_s / 3600
-            st.metric("Avg. Exec Time (hours)",
-                      f"{mean_time_h:.2f} ± {std_time_h:.2f}")
-        else:
-            st.metric("Avg. Execution Time", "N/A")
-    with col3:
-        if final_best_fitness:
-            mean_final_best = statistics.mean(final_best_fitness)
-            std_final_best = statistics.stdev(
-                final_best_fitness) if num_runs > 1 else 0
-            st.metric("Avg. Final Best Fitness",
-                      f"{mean_final_best:.4f} ± {std_final_best:.4f}")
-        else:
-            st.metric("Avg. Final Best Fitness", "N/A")
+        # Continue with the rest of the experiment-specific displays...
 
     # --- Display Plots ---
     # --- Combined Fitness Plot ---
@@ -437,31 +551,90 @@ if selected_task and selected_env and selected_experiment_name:
         else:
             st.caption("No average reward data.")  # Placeholder if no plot
 
-    # --- Display GIFs ---
+        # --- Display GIFs ---
     st.markdown("---")  # Add a separator
     st.subheader("Best Robots per Run")
+
+    # First find the best run (highest reward)
+    best_run = None
+    best_reward = float('-inf')
+
+    for run_data in experiment_runs_data:
+        if run_data.get('gif_path') and run_data.get('best_reward_history'):
+            final_reward = run_data['best_reward_history'][-1]
+            if final_reward > best_reward:
+                best_reward = final_reward
+                best_run = run_data
+
+    # Display the best run GIF prominently
+        # Display the best run GIF prominently
+    if best_run and best_run.get('gif_path'):
+        st.markdown("### Best Overall Robot")
+        st.write(f"**{best_run['run_name']}**")
+        try:
+            # Read GIF file as binary data
+            with open(best_run['gif_path'], 'rb') as f:
+                gif_data = f.read()
+
+            # Use base64 encoding and HTML to ensure animation works
+            import base64
+            b64 = base64.b64encode(gif_data).decode()
+
+            # Display using HTML with proper styling
+            html = f"""
+                <div style="display: flex; justify-content: center;">
+                    <img src="data:image/gif;base64,{b64}" width="400" alt="Best Robot Animation">
+                </div>
+            """
+            st.markdown(html, unsafe_allow_html=True)
+
+            # Display both fitness and reward for the best run
+            best_fitness = best_run.get('best_fitness_history', [0])[-1]
+            best_reward = best_run.get('best_reward_history', [0])[-1]
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Best Fitness", f"{best_fitness:.4f}")
+            with col2:
+                st.metric("Best Reward", f"{best_reward:.4f}")
+
+        except Exception as e:
+            st.warning(f"Could not load best GIF: {e}")
+
+    # Display all GIFs in a grid
+    st.markdown("### All Robots")
     num_cols = 5  # Adjust number of columns for GIFs
     cols = st.columns(num_cols)
     col_idx = 0
     gif_found = False
+
     for i, run_data in enumerate(experiment_runs_data):
         if run_data.get('gif_path'):
             gif_found = True
             with cols[col_idx % num_cols]:
                 st.write(f"**{run_data['run_name']}**")
                 try:
-                    st.image(run_data['gif_path'])
-                    # Display final best fitness for this specific run
+                    # Read and display GIF directly
+                    with open(run_data['gif_path'], 'rb') as f:
+                        gif_data = f.read()
+                    st.image(gif_data)
+
+                    # Display both fitness and reward for this run
                     if run_data.get('best_fitness_history'):
-                        st.caption(
-                            f"Final Best Fitness: {run_data['best_fitness_history'][-1]:.4f}")
+                        final_fitness = run_data['best_fitness_history'][-1]
+                        st.caption(f"Fitness: {final_fitness:.4f}")
+
+                    if run_data.get('best_reward_history'):
+                        final_reward = run_data['best_reward_history'][-1]
+                        st.caption(f"Reward: {final_reward:.4f}")
+
                 except FileNotFoundError:
-                    st.warning(
-                        f"GIF not found for {run_data['run_name']} at {run_data['gif_path']}")
+                    st.warning(f"GIF not found for {run_data['run_name']}")
                 except Exception as e:
                     st.warning(
                         f"Could not load GIF for {run_data['run_name']}: {e}")
             col_idx += 1
+
     if not gif_found:
         st.info("No GIFs found for this experiment.")
 
@@ -475,4 +648,3 @@ else:
 # 2. Make sure you have the necessary libraries: pip install streamlit pandas plotly Pillow
 # 3. Open your terminal in the project directory.
 # 4. Run: streamlit run visualization_dashboard.py
-
