@@ -64,7 +64,7 @@ def evaluate_fitness(robot_structure, view=False):
     and returns a fitness score based on how well the robot moves"""
     """O fitness score reflete o quão longe o robot se consegue deslocar"""
     if not is_connected(robot_structure):
-        return -5.0, 0
+        return -15.0, 0
 
     try:
         connectivity = get_full_connectivity(
@@ -133,7 +133,7 @@ def evaluate_fitness(robot_structure, view=False):
         return fitness_val, t_reward  # return fitness and reward
 
     except (ValueError, IndexError) as e:
-        return -5.0, 0  # Return a low fitness score if an error occurs
+        return -15.0, 0  # Return a low fitness score if an error occurs
 
 
 def evaluate_population_fitness(population) -> tuple:
@@ -371,7 +371,7 @@ def evolutionary_algorithm(elitism=ELITISM):
 # ----------Genetic Programming - Generation Expression Trees--------------------------------------------------------
 
 
-MIN_GP_TREE_DEPTH = 2
+MIN_GP_TREE_DEPTH = 1
 MAX_GP_TREE_DEPTH = 4
 
 
@@ -418,14 +418,32 @@ def standard_gp(elitism=ELITISM):
             # Select parents using tournament selection
             parent1 = tournament_selection(population, fitness_scores)
             parent2 = tournament_selection(population, fitness_scores)
-            parent1.crossover(parent2)
-            parent1.mutation()
-            nextgen_pop.append(parent1)
+
+            # Create copies to generate offspring
+            offspring1 = copy.deepcopy(parent1)
+            # Need a copy of parent2 for crossover
+            offspring2 = copy.deepcopy(parent2)
+
+            # Crossover modifies offspring1 in-place using offspring2
+            offspring1.crossover(offspring2)
+            offspring1.mutation()
+
+            nextgen_pop.append(offspring1)
 
         # Generational Strategy?
+                
+        
 
         population = nextgen_pop
+
         robot_pop = [tree.decode_to_robot((5, 5)) for tree in population]
+
+        # --- Add Logging Here ---
+        connected_count = sum(1 for robot in robot_pop if is_connected(robot))
+        disconnected_perc = (1 - (connected_count / POPULATION_SIZE)) * 100
+        print(f"Gen. {generation + 1} Disconnected: {disconnected_perc:.1f}%")
+        # --- End Logging ---
+
         fitness_scores, rewards = evaluate_population_fitness(robot_pop)
         best_fitness_idx = np.argmax(fitness_scores)
         best_reward_idx = np.argmax(rewards)
@@ -454,11 +472,12 @@ def standard_gp(elitism=ELITISM):
         average_reward_history.append(average_reward)
 
         print(
-            f"Gen. {generation + 1} | Curr.Fit. = {fitness_scores[best_fitness_idx]:.2f} | BestFitGen. = {best_fitness:.2f} | BestFitOvr. = {best_fitness:.2f} | Avg.Fit. = {average_fitness:.2f} | BestRewardGen = {best_reward:.2f} | Avg.Reward = {average_reward:.2f}"
+            # Use best_gen_fitness and best_gen_reward for generation-specific reporting
+            f"Gen. {generation + 1} | Curr.Fit. = {fitness_scores[best_fitness_idx]:.2f} | BestFitGen. = {best_gen_fitness:.2f} | BestFitOvr. = {best_fitness:.2f} | Avg.Fit. = {average_fitness:.2f} | BestRewardGen = {best_gen_reward:.2f} | Avg.Reward = {average_reward:.2f}"
         )
 
-        print(f"Best robot tree: {best_robot_tree.print_tree()}")
-        print(f"Best robot structure: {best_robot}")
+        print(f"Best robot tree:\n {best_robot_tree.print_tree()}")
+        print(f"Best robot structure:\n {best_robot}")
 
     return (
         best_robot,

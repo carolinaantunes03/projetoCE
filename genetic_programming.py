@@ -1,6 +1,6 @@
 import math
 import random
-from random import randint, random
+from random import randint, random, uniform
 # Adaptation of the Tiny-GP code available at https://github.com/moshesipper/tiny_gp/blob/master/tiny_gp.py
 from random import random, randint, seed, sample
 from statistics import mean
@@ -48,23 +48,13 @@ log_base.arity = 2
 
 
 def div(x, y):
-    if y == 0:
-        return -1
+    if y < 0.00001:
+        return 1.0
     else:
         return x / y
 
 
 div.arity = 2
-
-
-def sqrt_f(x):
-    if x < 0:
-        return -1
-    else:
-        return x**0.5
-
-
-sqrt_f.arity = 1
 
 
 def abs_f(x):
@@ -74,18 +64,18 @@ def abs_f(x):
 abs_f.arity = 1
 
 
-def square(x):
-    return x**2
+def sin(x):
+    return math.sin(x)
 
 
-square.arity = 1
+sin.arity = 1
 
 
-def exp_f(x):
-    return math.exp(x)
+def cos(x):
+    return math.cos(x)
 
 
-exp_f.arity = 1
+cos.arity = 1
 
 
 def max_f(x, y):
@@ -105,15 +95,18 @@ min_f.arity = 2
 # ---------------------------
 # Terminals and Function List
 # ---------------------------
-TERMINALS = ["x", "y", 0, 1, 2, 3, 4]
-FUNCTIONS = [add, sub, mul,
-             max_f, min_f]
+ERC_MIN = -1.0
+ERC_MAX = 1.0
+
+TERMINALS = ["x", "y", 0, 1, 2, 3, 4, "ERC"]
+FUNCTIONS = [add, sub, mul, div, sin, cos, abs_f]
+
 
 # Implementation of a GP tree from PL4.
 
 
 class GPTree:
-    def __init__(self, data=None, children=None, mutation_rate=None, min_depth=1, max_depth=5, crossover_rate=1.01):
+    def __init__(self, mutation_rate, min_depth, max_depth, crossover_rate, data=None, children=None):
         self.data = data
         # Use a list for children; if not provided, initialize as empty.
         self.children = children if children is not None else []
@@ -129,8 +122,11 @@ class GPTree:
     def node_label(self):
         if self.data in FUNCTIONS:
             return self.data.__name__
+        # Add check for float (ERC)
+        elif isinstance(self.data, float):
+            return f"{self.data:.3f}"  # Format the float ERC value
         else:
-            return str(self.data)
+            return str(self.data)  # Handles 'x', 'y', and integers
 
     def print_tree(self, prefix=""):
         print(f"{prefix}{self.node_label()}")
@@ -152,15 +148,28 @@ class GPTree:
     def random_tree(self, grow, max_depth, depth=0):
         # Decide whether this node will be a function or a terminal.
         if depth < self.min_depth or (depth < max_depth and not grow):
+            # Choose a function
             self.data = FUNCTIONS[randint(0, len(FUNCTIONS) - 1)]
         elif depth >= max_depth:
-            self.data = TERMINALS[randint(0, len(TERMINALS) - 1)]
-        else:
-            if random() > 0.5:
-                self.data = TERMINALS[randint(0, len(TERMINALS) - 1)]
+            # Must be a terminal
+            terminal_choice = TERMINALS[randint(0, len(TERMINALS) - 1)]
+            # If ERC is chosen, replace data with a random float, otherwise use the terminal directly
+            if terminal_choice == "ERC":
+                # Generate ERC value, e.g., between -1 and 1
+                self.data = uniform(ERC_MIN, ERC_MAX)
             else:
+                self.data = terminal_choice
+        else:  # Intermediate depth, can be function or terminal
+            if random() > 0.5:  # Choose terminal
+                terminal_choice = TERMINALS[randint(0, len(TERMINALS) - 1)]
+                if terminal_choice == "ERC":
+                    self.data = uniform(ERC_MIN, ERC_MAX)
+                else:
+                    self.data = terminal_choice
+            else:  # Choose function
                 self.data = FUNCTIONS[randint(0, len(FUNCTIONS) - 1)]
-        # If the node is a function, create as many children as its arity
+
+        # If the node is a function, create children
         if self.data in FUNCTIONS:
             self.children = []
             for _ in range(self.data.arity):
