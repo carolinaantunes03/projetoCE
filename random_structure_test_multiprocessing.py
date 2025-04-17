@@ -32,7 +32,7 @@ MIN_GRID_SIZE = (5, 5)  # Minimum size of the robot grid
 MAX_GRID_SIZE = (5, 5)  # Maximum size of the robot grid
 STEPS = 500
 POPULATION_SIZE = 20  # Number of robots per generation
-MUTATION_RATE = 0.15  # Probability of mutation
+MUTATION_RATE = 0.1  # Probability of mutation
 
 TOURNAMENT_SIZE = 5  # Number of individuals in the tournament for selection
 ELITISM = True  # Whether to use elitism or not
@@ -52,7 +52,7 @@ CONTROLLERS = {
 }  # we should choose only ONE but we can test all
 
 SCENARIO = "Walker-v0"
-CONTROLLER = hopping_motion  # fixed controller
+CONTROLLER = alternating_gait  # fixed controller
 
 # ---- VOXEL TYPES ----
 VOXEL_TYPES = [0, 1, 2, 3, 4]
@@ -431,8 +431,6 @@ def standard_gp(elitism=ELITISM):
             nextgen_pop.append(offspring1)
 
         # Generational Strategy?
-                
-        
 
         population = nextgen_pop
 
@@ -575,7 +573,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = standard_gp(elitism=ELITISM)
+        ) = evolutionary_algorithm(elitism=ELITISM)
         # **********************************************************************
         end_time = time.time()
 
