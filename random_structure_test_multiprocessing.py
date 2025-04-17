@@ -125,10 +125,18 @@ def evaluate_fitness(robot_structure, view=False):
         viewer.close()
         env.close()
 
+        total_time = sim.get_time()
+
         avg_velocity_x = t_velocity_x / t
         avg_velocity_y = t_velocity_y / t
 
-        fitness_val = t_reward + 0.1 * avg_velocity_x
+        primary_obj_reward = reward
+
+        secondary_obj_reward = avg_velocity_x
+
+        time_penalty_factor = 0.05
+
+        fitness_val = t_reward / (1 + time_penalty_factor * total_time)
 
         return fitness_val, t_reward  # return fitness and reward
 
