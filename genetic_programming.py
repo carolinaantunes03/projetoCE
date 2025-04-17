@@ -88,11 +88,26 @@ def exp_f(x):
 exp_f.arity = 1
 
 
+def max_f(x, y):
+    return max(x, y)
+
+
+max_f.arity = 2
+
+
+def min_f(x, y):
+    return min(x, y)
+
+
+min_f.arity = 2
+
+
 # ---------------------------
 # Terminals and Function List
 # ---------------------------
 TERMINALS = ["x", "y", 0, 1, 2, 3, 4]
-FUNCTIONS = [add, sub, mul, abs_f, sqrt_f, div, log_base, square]
+FUNCTIONS = [add, sub, mul,
+             max_f, min_f]
 
 # Implementation of a GP tree from PL4.
 

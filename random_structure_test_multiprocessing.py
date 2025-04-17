@@ -371,8 +371,8 @@ def evolutionary_algorithm(elitism=ELITISM):
 # ----------Genetic Programming - Generation Expression Trees--------------------------------------------------------
 
 
-MIN_GP_TREE_DEPTH = 1
-MAX_GP_TREE_DEPTH = 3
+MIN_GP_TREE_DEPTH = 2
+MAX_GP_TREE_DEPTH = 4
 
 
 def standard_gp(elitism=ELITISM):
