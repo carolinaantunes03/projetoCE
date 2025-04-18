@@ -32,9 +32,9 @@ MIN_GRID_SIZE = (5, 5)  # Minimum size of the robot grid
 MAX_GRID_SIZE = (5, 5)  # Maximum size of the robot grid
 STEPS = 500
 POPULATION_SIZE = 20  # Number of robots per generation
-MUTATION_RATE = 0.1  # Probability of mutation
+MUTATION_RATE = 0.05  # Probability of mutation
 
-TOURNAMENT_SIZE = 5  # Number of individuals in the tournament for selection
+TOURNAMENT_SIZE = 4  # Number of individuals in the tournament for selection
 ELITISM = True  # Whether to use elitism or not
 ELITE_SIZE = 2  # Number of elite individuals to carry over to the next generation
 
@@ -52,7 +52,7 @@ CONTROLLERS = {
 }  # we should choose only ONE but we can test all
 
 SCENARIO = "Walker-v0"
-CONTROLLER = alternating_gait  # fixed controller
+CONTROLLER = hopping_motion  # fixed controller
 
 # ---- VOXEL TYPES ----
 VOXEL_TYPES = [0, 1, 2, 3, 4]
@@ -134,7 +134,7 @@ def evaluate_fitness(robot_structure, view=False):
 
         secondary_obj_reward = avg_velocity_x
 
-        time_penalty_factor = 0.05
+        time_penalty_factor = 0.01
 
         fitness_val = t_reward / (1 + time_penalty_factor * total_time)
 
@@ -581,7 +581,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = evolutionary_algorithm(elitism=ELITISM)
+        ) = random_search()
         # **********************************************************************
         end_time = time.time()
 
