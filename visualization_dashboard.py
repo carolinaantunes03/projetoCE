@@ -481,6 +481,13 @@ if selected_task and selected_env and selected_experiment_name:
         experiment_runs_data = load_experiment_data(experiment_path)
         experiment_config = load_experiment_config(experiment_path)
 
+    # Display Experiment Configuration if loaded
+    if experiment_config:
+        st.subheader("Experiment Configuration")
+        with st.expander("View Configuration Details"):
+            st.json(experiment_config)  # Display the config as a JSON object
+        st.markdown("---")  # Add a separator
+
     # Now we can safely use experiment_runs_data
     if experiment_runs_data:
         # --- Display Metrics ---
