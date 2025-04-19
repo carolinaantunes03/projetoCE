@@ -329,7 +329,7 @@ def evolutionary_algorithm(elitism=ELITISM):
             parent2 = tournament_selection(population, fitness_scores)
 
             # Apply crossover to produce offspring
-            offspring = one_point_crossover(parent1, parent2)
+            offspring = uniform_crossover(parent1, parent2)
             # Apply mutation
             offspring = flip_mutation(offspring, MUTATION_RATE)
 
@@ -518,7 +518,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(0)RandomSearch",
+        "name": "(1.4)GeneticAl_FlipMut_UnifCross",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -587,7 +587,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = random_search()
+        ) = evolutionary_algorithm(elitism=ELITISM)
         # **********************************************************************
         end_time = time.time()
 

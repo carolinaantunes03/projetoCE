@@ -1,14 +1,14 @@
 {
-    "name": "RandomSearch",
+    "name": "(0)RandomSearch",
     "repetitions": 5,
     "num_generations": 250,
     "population_size": 20,
-    "mutation_rate": 0.05,
+    "mutation_rate": 0.1,
     "steps": 500,
-    "controller": "hopping_motion",
+    "controller": "alternating_gait",
     "scenario": "Walker-v0",
-    "time": "D18_M04_21_46",
+    "time": "D18_M04_21_53",
     "elitism": true,
     "elitism_size": 2,
-    "tournament_size": 4
+    "tournament_size": 5
 }
