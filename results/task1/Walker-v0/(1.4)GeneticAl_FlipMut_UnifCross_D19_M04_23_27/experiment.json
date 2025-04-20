@@ -1,14 +1,14 @@
 {
-    "name": "(0)RandomSearch",
+    "name": "(1.4)GeneticAl_FlipMut_UnifCross",
     "repetitions": 5,
     "num_generations": 250,
     "population_size": 20,
-    "mutation_rate": 0.1,
+    "mutation_rate": 0.05,
     "steps": 500,
-    "controller": "alternating_gait",
+    "controller": "hopping_motion",
     "scenario": "Walker-v0",
-    "time": "D18_M04_21_53",
+    "time": "D19_M04_23_27",
     "elitism": true,
     "elitism_size": 2,
-    "tournament_size": 5
+    "tournament_size": 4
 }
