@@ -1,0 +1,14 @@
+{
+    "name": "(1.2)GeneticAl_SwapMut_UnifCross",
+    "repetitions": 5,
+    "num_generations": 250,
+    "population_size": 20,
+    "mutation_rate": 0.05,
+    "steps": 500,
+    "controller": "hopping_motion",
+    "scenario": "Walker-v0",
+    "time": "D19_M04_17_46",
+    "elitism": true,
+    "elitism_size": 2,
+    "tournament_size": 4
+}

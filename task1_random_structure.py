@@ -32,14 +32,14 @@ MIN_GRID_SIZE = (5, 5)  # Minimum size of the robot grid
 MAX_GRID_SIZE = (5, 5)  # Maximum size of the robot grid
 STEPS = 500
 POPULATION_SIZE = 20  # Number of robots per generation
-MUTATION_RATE = 0.1  # Probability of mutation
+MUTATION_RATE = 0.05  # Probability of mutation
 
-TOURNAMENT_SIZE = 5  # Number of individuals in the tournament for selection
+TOURNAMENT_SIZE = 4  # Number of individuals in the tournament for selection
 ELITISM = True  # Whether to use elitism or not
 ELITE_SIZE = 2  # Number of elite individuals to carry over to the next generation
 
 # -- Sim ---
-MULTIPROCESSING = True  # Whether to use multiprocessing or not
+MULTIPROCESSING = False  # Whether to use multiprocessing or not
 
 
 # ---- TESTING SETTINGS ----
@@ -55,7 +55,7 @@ CONTROLLERS = {
 }  # we should choose only ONE but we can test all
 
 SCENARIO = "Walker-v0"
-CONTROLLER = alternating_gait  # fixed controller
+CONTROLLER = hopping_motion  # fixed controller
 
 # ---- VOXEL TYPES ----
 VOXEL_TYPES = [0, 1, 2, 3, 4]
@@ -328,6 +328,7 @@ def evolutionary_algorithm(elitism=ELITISM):
             parent1 = tournament_selection(population, fitness_scores)
             parent2 = tournament_selection(population, fitness_scores)
 
+            # Change here to create different types of evolutionary algorithms
             # Apply crossover to produce offspring
             offspring = uniform_crossover(parent1, parent2)
             # Apply mutation
@@ -518,7 +519,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(1.4)GeneticAl_FlipMut_UnifCross",
+        "name": "(0)RandomSearch",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -587,7 +588,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = evolutionary_algorithm(elitism=ELITISM)
+        ) = random_search()
         # **********************************************************************
         end_time = time.time()
 
