@@ -1,0 +1,14 @@
+{
+    "name": "(1.3M015T6)GeneticAl_FlipMut_1PCross",
+    "repetitions": 5,
+    "num_generations": 250,
+    "population_size": 20,
+    "mutation_rate": 0.15,
+    "steps": 500,
+    "controller": "hopping_motion",
+    "scenario": "Walker-v0",
+    "time": "D21_M04_11_15",
+    "elitism": true,
+    "elitism_size": 2,
+    "tournament_size": 6
+}
