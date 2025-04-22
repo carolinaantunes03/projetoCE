@@ -1,0 +1,14 @@
+{
+    "name": "EA_hopping_controller_Test",
+    "repetitions": 5,
+    "num_generations": 250,
+    "population_size": 20,
+    "mutation_rate": 0.05,
+    "steps": 500,
+    "controller": "hopping_motion",
+    "scenario": "Walker-v0",
+    "time": "D22_M04_13_32",
+    "elitism": true,
+    "elitism_size": 2,
+    "tournament_size": 4
+}
