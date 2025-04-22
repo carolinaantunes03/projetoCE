@@ -32,9 +32,9 @@ MIN_GRID_SIZE = (5, 5)  # Minimum size of the robot grid
 MAX_GRID_SIZE = (5, 5)  # Maximum size of the robot grid
 STEPS = 500
 POPULATION_SIZE = 20  # Number of robots per generation
-MUTATION_RATE = 0.05  # Probability of mutation
+MUTATION_RATE = 0.15  # Probability of mutation
 
-TOURNAMENT_SIZE = 4  # Number of individuals in the tournament for selection
+TOURNAMENT_SIZE = 2  # Number of individuals in the tournament for selection
 ELITISM = True  # Whether to use elitism or not
 ELITE_SIZE = 2  # Number of elite individuals to carry over to the next generation
 
@@ -519,7 +519,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(0)RandomSearch",
+        "name": "(1.3M015T2)GeneticAl_FlipMut_1PCross",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -588,7 +588,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = random_search()        # **********************************************************************
+        ) = evolutionary_algorithm()        # **********************************************************************
         end_time = time.time()
 
         print("Best robot structure found:")
