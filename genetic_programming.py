@@ -92,14 +92,39 @@ def min_f(x, y):
 min_f.arity = 2
 
 
+def if_then_else(condition, value_if_true, value_if_false):
+    """ If condition > 0, return value_if_true, else return value_if_false """
+    if condition > 0:
+        return value_if_true
+    else:
+        return value_if_false
+
+
+if_then_else.arity = 3
+
+
+def set_between_f(x, l1, l2, value_in, value_out):
+    # if x is between l1 and l2 (inclusive), return value_in, else return value_out
+    # Ensure l1 is the lower bound and l2 is the upper bound
+    lower = min(l1, l2)
+    upper = max(l1, l2)
+    if lower <= x <= upper:
+        return value_in
+    else:
+        return value_out
+
+
+set_between_f.arity = 5
+
 # ---------------------------
 # Terminals and Function List
 # ---------------------------
 ERC_MIN = -1.0
 ERC_MAX = 1.0
 
-TERMINALS = ["x", "y", 0, 1, 2, 3, 4, "ERC"]
-FUNCTIONS = [add, sub, mul, div, sin, cos, abs_f]
+TERMINALS = ["x", "y", 0, 1, 2, 3, 4]
+FUNCTIONS = [add, sub, mul, div, sin, cos, abs_f,
+             min_f, max_f, set_between_f, if_then_else]
 
 
 # Implementation of a GP tree from PL4.
