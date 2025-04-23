@@ -36,7 +36,7 @@ MUTATION_RATE = 0.15  # Probability of mutation
 
 TOURNAMENT_SIZE = 2  # Number of individuals in the tournament for selection
 ELITISM = True  # Whether to use elitism or not
-ELITE_SIZE = 2  # Number of elite individuals to carry over to the next generation
+ELITE_SIZE = 1  # Number of elite individuals to carry over to the next generation
 
 # -- Sim ---
 MULTIPROCESSING = False  # Whether to use multiprocessing or not
@@ -54,7 +54,7 @@ CONTROLLERS = {
     hopping_motion,
 }  # we should choose only ONE but we can test all
 
-SCENARIO = "Walker-v0"
+SCENARIO = "BridgeWalker-v0"
 CONTROLLER = hopping_motion  # fixed controller
 
 # ---- VOXEL TYPES ----
@@ -514,12 +514,12 @@ if __name__ == "__main__":
     multiprocessing.freeze_support()  # For Windows compatibility
 
     RUN_SEEDS = [6363, 9374, 2003, 198, 2782]
-    results_folder = "results/task1"
+    results_folder = "results/task1/"
 
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(1.3M015T2)GeneticAl_FlipMut_1PCross",
+        "name": "(1.1)GeneticAl_FlipMut_1PCross",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
