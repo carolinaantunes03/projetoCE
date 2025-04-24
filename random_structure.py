@@ -330,7 +330,7 @@ def evolutionary_algorithm(elitism=ELITISM):
 
             # Change here to create different types of evolutionary algorithms
             # Apply crossover to produce offspring
-            offspring = one_point_crossover(parent1, parent2)
+            offspring = uniform_crossover(parent1, parent2)
             # Apply mutation
             offspring = flip_mutation(offspring, MUTATION_RATE)
 
@@ -519,7 +519,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(1.1)GeneticAl_FlipMut_1PCross",
+        "name": "(1.2)GeneticAl_FlipMut_UnifCross",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,

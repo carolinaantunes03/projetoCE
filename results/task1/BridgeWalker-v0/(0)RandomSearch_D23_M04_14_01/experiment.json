@@ -1,0 +1,14 @@
+{
+    "name": "(0)RandomSearch",
+    "repetitions": 5,
+    "num_generations": 250,
+    "population_size": 20,
+    "mutation_rate": 0.15,
+    "steps": 500,
+    "controller": "hopping_motion",
+    "scenario": "BridgeWalker-v0",
+    "time": "D23_M04_14_01",
+    "elitism": true,
+    "elitism_size": 1,
+    "tournament_size": 2
+}
