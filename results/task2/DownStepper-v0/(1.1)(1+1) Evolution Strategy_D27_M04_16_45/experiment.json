@@ -1,0 +1,11 @@
+{
+    "name": "(1.1)(1+1) Evolution Strategy",
+    "repetitions": 5,
+    "num_generations": 25,
+    "sigma": 0.1,
+    "alpha": 0.25,
+    "steps": 500,
+    "controller": "NeuralController",
+    "scenario": "DownStepper-v0",
+    "time": "D27_M04_16_45"
+}
