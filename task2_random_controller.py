@@ -6,37 +6,43 @@ import time
 import os
 import json
 import multiprocessing
-
 from evogym.envs import *
 from evogym import EvoViewer, get_full_connectivity
 from neural_controller import *
-import utils 
+import utils
+
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 25  # Number of generations to evolve
+NUM_GENERATIONS = 5  # Number of generations to evolve
+POPULATION_SIZE = 20  # Number of robots per generation
 STEPS = 500
 
 # (1+1) Evolution Strategy Params
 SIGMA = 0.1
 ALPHA = 0.25
 
-#POPULATION_SIZE = 20  # Number of robots per generation
-#MUTATION_RATE = 0.15  # Probability of mutation
+# (μ + λ) Evolution Strategy Params
+MU = 5  # Number of parents
+LAMBDA = 5  # Number of offspring
 
-#TOURNAMENT_SIZE = 2  # Number of individuals in the tournament for selection
-#ELITISM = True  # Whether to use elitism or not
-#ELITE_SIZE = 1  # Number of elite individuals to carry over to the next generation
+# Mutation Params
+MUTATION_RATE = 0.15  # Probability of mutation
 
-# -- Sim ---
+# Selection Params
+TOURNAMENT_SIZE = 2  # Number of individuals in the tournament for selection
+ELITISM = True  # Whether to use elitism or not
+ELITE_SIZE = 1  # Number of elite individuals to carry over to the next generation
+
+# -- For Robot Eval ---
 MULTIPROCESSING = False  # Whether to use multiprocessing or not
 
 # ---- Fixed Robot Structure ----
-robot_structure = np.array([ 
-[1,3,1,0,0],
-[4,1,3,2,2],
-[3,4,4,4,4],
-[3,0,0,3,2],
-[0,0,0,0,2]
+robot_structure = np.array([
+    [1, 3, 1, 0, 0],
+    [4, 1, 3, 2, 2],
+    [3, 4, 4, 4, 4],
+    [3, 0, 0, 3, 2],
+    [0, 0, 0, 0, 2]
 ])
 
 # ---- TESTING SETTINGS ----
@@ -45,30 +51,29 @@ SCENARIO = "DownStepper-v0"
 SCENARIOS = [
     "DownStepper-v0",
     "ObstacleTraverser-v0",
-]  
-
-
-
+]
 
 connectivity = get_full_connectivity(robot_structure)
-env = gym.make(SCENARIO, max_episode_steps=STEPS, body=robot_structure, connections=connectivity)
+env = gym.make(SCENARIO, max_episode_steps=STEPS,
+               body=robot_structure, connections=connectivity)
 sim = env.sim
 input_size = env.observation_space.shape[0]  # Observation size
 output_size = env.action_space.shape[0]  # Action size
 
 brain = NeuralController(input_size, output_size)
 
-# ---- FITNESS FUNCTION ---- 
+# ---- FITNESS FUNCTION ----
+
 
 def evaluate_fitness(weights, view=False):
-    set_weights(brain, weights)  # Load weights into the network
-
+    utils.set_weights(brain, weights)  # Load weights into the network
     try:
-        env = gym.make(SCENARIO, max_episode_steps=STEPS, body=robot_structure, connections=connectivity)
+        env = gym.make(SCENARIO, max_episode_steps=STEPS,
+                       body=robot_structure, connections=connectivity)
         sim = env.sim
         viewer = EvoViewer(sim)
         viewer.track_objects("robot")
-        
+
         state = env.reset()[0]  # Get initial state
         t_reward = 0
         t_velocity_x = 0.0
@@ -78,13 +83,14 @@ def evaluate_fitness(weights, view=False):
         t = 0
         for t in range(STEPS):
             # Get action from NN controller
-            state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+            state_tensor = torch.tensor(
+                state, dtype=torch.float32).unsqueeze(0)
             action = brain(state_tensor).detach().numpy().flatten()
 
             if view:
                 viewer.render('screen')
             state, reward, terminated, truncated, info = env.step(action)
-            
+
             time = sim.get_time()
             vel = sim.object_vel_at_time(time, "robot")
             vel_at_t = np.mean(vel, axis=1)
@@ -115,25 +121,13 @@ def evaluate_fitness(weights, view=False):
 
     except (ValueError, IndexError) as e:
         return -15.0, 0
-    
+
 # ---- HELPER FUNCTIONS ----
-def get_param_as_weights(param_vector):
-    shapes = [p.shape for p in brain.parameters()]
-    new_weights = []
-    idx = 0
-    for shape in shapes:
-        size = np.prod(shape)
-        new_weights.append(param_vector[idx:idx+size].reshape(shape))
-        idx += size
-    return new_weights
+
 
 def get_flat_params(brain):
     return np.concatenate([p.detach().numpy().flatten() for p in brain.parameters()])
 
-def setup_run(seed):
-    np.random.seed(seed)
-    random.seed(seed)
-    torch.manual_seed(seed)
 
 # ---- RANDOM SEARCH ALGORITHM ----
 def random_search_algorithm():
@@ -146,7 +140,8 @@ def random_search_algorithm():
     average_reward_history = []
 
     for generation in range(NUM_GENERATIONS):
-        random_weights = [np.random.randn(*param.shape) for param in brain.parameters()]
+        random_weights = [np.random.randn(*param.shape)
+                          for param in brain.parameters()]
 
         fitness, reward = evaluate_fitness(random_weights)
 
@@ -156,15 +151,18 @@ def random_search_algorithm():
             best_reward = reward
             print(f"Gen {generation+1}: New best fitness = {best_fitness:.2f}")
         else:
-            print(f"Gen {generation+1}: No improvement (best={best_fitness:.2f})")
+            print(
+                f"Gen {generation+1}: No improvement (best={best_fitness:.2f})")
 
         best_fitness_history.append(best_fitness)
         average_fitness_history.append(best_fitness)
-        best_reward_history.append(best_reward if 'best_reward' in locals() else reward)
-        average_reward_history.append(best_reward if 'best_reward' in locals() else reward)
+        best_reward_history.append(
+            best_reward if 'best_reward' in locals() else reward)
+        average_reward_history.append(
+            best_reward if 'best_reward' in locals() else reward)
 
     # Set the best weights found
-    set_weights(brain, best_weights)
+    utils.set_weights(brain, best_weights)
 
     return (
         best_weights,
@@ -176,13 +174,13 @@ def random_search_algorithm():
     )
 
 
-
 # ---- (1+1) EVOLUTION STRATEGY ----
 def one_plus_one_es():
     param_vector = get_flat_params(brain)
     best_params = param_vector.copy()
 
-    best_fitness, best_reward = evaluate_fitness(get_param_as_weights(best_params))
+    best_fitness, best_reward = evaluate_fitness(
+        utils.get_param_as_weights(best_params, model=brain))
     best_fitness_history = [best_fitness]
     average_fitness_history = [best_fitness]
     best_reward_history = [best_reward]
@@ -199,7 +197,8 @@ def one_plus_one_es():
             if np.random.rand() < ALPHA:
                 offspring_params[i] += SIGMA * np.random.randn()
 
-        offspring_fitness, offspring_reward = evaluate_fitness(get_param_as_weights(offspring_params))
+        offspring_fitness, offspring_reward = evaluate_fitness(
+            utils.get_param_as_weights(offspring_params, model=brain))
 
         if offspring_fitness > best_fitness:
             best_fitness = offspring_fitness
@@ -207,14 +206,16 @@ def one_plus_one_es():
             best_reward = offspring_reward
             print(f"Gen {generation+1}: New best fitness = {best_fitness:.2f}")
         else:
-            print(f"Gen {generation+1}: No improvement (best={best_fitness:.2f})")
+            print(
+                f"Gen {generation+1}: No improvement (best={best_fitness:.2f})")
 
         best_fitness_history.append(best_fitness)
         average_fitness_history.append(best_fitness)
         best_reward_history.append(best_reward)
         average_reward_history.append(best_reward)
 
-    set_weights(brain, get_param_as_weights(best_params))
+    utils.set_weights(brain, utils.get_param_as_weights(
+        best_params, model=brain))
 
     return (
         best_params,
@@ -227,34 +228,37 @@ def one_plus_one_es():
 
 # ---- (μ + λ) EVOLUTION STRATEGY ----
 
-def mu_plus_lambda_es(mu=5, lamb=5):
+
+def mu_plus_lambda_es(mu=MU, lamb=LAMBDA):
     # Evaluate initial mu parents
     parents = []
     for _ in range(mu):
         param_vector = get_flat_params(brain)
-        fitness, reward = evaluate_fitness(get_param_as_weights(param_vector))
-        parents.append({'params': param_vector, 'fitness': fitness, 'reward': reward})
-    
+        fitness, reward = evaluate_fitness(
+            utils.get_param_as_weights(param_vector, model=brain))
+        parents.append(
+            {'params': param_vector, 'fitness': fitness, 'reward': reward})
+
     # Sort parents by fitness descending
     parents.sort(key=lambda x: x['fitness'], reverse=True)
-    
+
     best_params = parents[0]['params'].copy()
     best_fitness = parents[0]['fitness']
     best_reward = parents[0]['reward']
-    
+
     best_fitness_history = [best_fitness]
     average_fitness_history = [np.mean([p['fitness'] for p in parents])]
     best_reward_history = [best_reward]
     average_reward_history = [np.mean([p['reward'] for p in parents])]
-    
+
     print(f"Initial best fitness: {best_fitness:.2f}")
-    
+
     # Calculate max generations based on budget:
     max_generations = (NUM_GENERATIONS - mu) // lamb
-    
+
     for generation in range(max_generations):
         offspring = []
-        
+
         # For each offspring, choose a parent to mutate (can do uniform random or tournament)
         for _ in range(lamb):
             parent = random.choice(parents)
@@ -263,15 +267,17 @@ def mu_plus_lambda_es(mu=5, lamb=5):
             for i in range(len(child_params)):
                 if np.random.rand() < ALPHA:
                     child_params[i] += SIGMA * np.random.randn()
-            
-            child_fitness, child_reward = evaluate_fitness(get_param_as_weights(child_params))
-            offspring.append({'params': child_params, 'fitness': child_fitness, 'reward': child_reward})
-        
+
+            child_fitness, child_reward = evaluate_fitness(
+                utils.get_param_as_weights(child_params, model=brain))
+            offspring.append(
+                {'params': child_params, 'fitness': child_fitness, 'reward': child_reward})
+
         # Combine parents + offspring and select top mu individuals
         combined = parents + offspring
         combined.sort(key=lambda x: x['fitness'], reverse=True)
         parents = combined[:mu]
-        
+
         # Track stats from the new parent population
         current_best = parents[0]
         if current_best['fitness'] > best_fitness:
@@ -280,16 +286,19 @@ def mu_plus_lambda_es(mu=5, lamb=5):
             best_reward = current_best['reward']
             print(f"Gen {generation+1}: New best fitness = {best_fitness:.2f}")
         else:
-            print(f"Gen {generation+1}: No improvement (best={best_fitness:.2f})")
-        
+            print(
+                f"Gen {generation+1}: No improvement (best={best_fitness:.2f})")
+
         best_fitness_history.append(best_fitness)
-        average_fitness_history.append(np.mean([p['fitness'] for p in parents]))
+        average_fitness_history.append(
+            np.mean([p['fitness'] for p in parents]))
         best_reward_history.append(best_reward)
         average_reward_history.append(np.mean([p['reward'] for p in parents]))
-    
+
     # Set best found weights in brain
-    set_weights(brain, get_param_as_weights(best_params))
-    
+    utils.set_weights(brain, utils.get_param_as_weights(
+        best_params, model=brain))
+
     return (
         best_params,
         best_fitness,
@@ -300,9 +309,13 @@ def mu_plus_lambda_es(mu=5, lamb=5):
     )
 
 
+def setup_run(seed):
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.manual_seed(seed)
+
 
 # ------ EXPERIMENTS ----------
-
 # Choose which approach to run:
 if __name__ == "__main__":
 
@@ -321,6 +334,10 @@ if __name__ == "__main__":
         "sigma": SIGMA,
         "alpha": ALPHA,
         "steps": STEPS,
+        "population_size": POPULATION_SIZE,
+        "mutation_rate": MUTATION_RATE,
+        "mu": MU,
+        "lamb": LAMBDA,
         "controller": NeuralController.__name__,
         "scenario": SCENARIO,
         "time": time.strftime("D%d_M%m_%H_%M"),
@@ -386,15 +403,14 @@ if __name__ == "__main__":
             json.dump(run_info, f, indent=4)
 
         brain = NeuralController(input_size, output_size)
-        set_weights(brain, best_controller_params)      
+        utils.set_weights(brain, best_controller_params)
 
         # Create a GIF of the best performing controller
         utils.create_gif_nn(
-            get_param_as_weights(np.array(best_controller_params)),
-            brain,
-            robot_structure,
+            weights=best_controller_params,
+            robot_structure=robot_structure,
+            filename=os.path.join(run_folder, "best_robot.gif"),
             scenario=SCENARIO,
             steps=STEPS,
-            filename=f"{run_folder}/best_robot.gif",
-            #controller=brain,
+            brain=brain,
         )

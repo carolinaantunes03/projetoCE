@@ -38,7 +38,7 @@ brain = NeuralController(input_size, output_size)
 
 # ---- FITNESS FUNCTION ----
 def evaluate_fitness(weights, view=False):
-        set_weights(brain, weights)  # Load weights into the network
+        utils.set_weights(brain, weights)  # Load weights into the network
         env = gym.make(SCENARIO, max_episode_steps=STEPS, body=robot_structure, connections=connectivity)
         sim = env
         viewer = EvoViewer(sim)
@@ -81,13 +81,13 @@ for generation in range(NUM_GENERATIONS):
     print(f"Generation {generation + 1}/{NUM_GENERATIONS}, Fitness: {fitness}")
 
 # Set the best weights found
-set_weights(brain, best_weights)
+utils.set_weights(brain, best_weights)
 print(f"Best Fitness: {best_fitness}")
 
 
 # ---- VISUALIZATION ----
 def visualize_policy(weights):
-    set_weights(brain, weights)  # Load weights into the network
+    utils.set_weights(brain, weights)  # Load weights into the network
     env = gym.make(SCENARIO, max_episode_steps=STEPS, body=robot_structure, connections=connectivity)
     sim = env.sim
     viewer = EvoViewer(sim)
