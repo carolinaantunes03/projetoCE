@@ -384,15 +384,12 @@ if __name__ == "__main__":
 
         with open(os.path.join(run_folder, "run.json"), "w") as f:
             json.dump(run_info, f, indent=4)
-
-        brain = NeuralController(input_size, output_size)
-        set_weights(brain, best_controller_params)      
+  
 
         # Create a GIF of the best performing controller
-        utils.create_gif_nn(
-            get_param_as_weights(np.array(best_controller_params)),
-            brain,
-            robot_structure,
+        utils.create_gif(
+            robot_structure=robot_structure,
+            controller=brain,
             scenario=SCENARIO,
             steps=STEPS,
             filename=f"{run_folder}/best_robot.gif",
