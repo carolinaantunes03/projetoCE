@@ -14,7 +14,7 @@ import utils
 
 # ---- PARAMETERS ----
 NUM_GENERATIONS = 5  # Number of generations to evolve
-POPULATION_SIZE = 20  # Number of robots per generation
+POPULATION_SIZE = 10  # Number of robots per generation
 STEPS = 500
 
 # (1+1) Evolution Strategy Params
@@ -63,6 +63,51 @@ output_size = env.action_space.shape[0]  # Action size
 brain = NeuralController(input_size, output_size)
 
 # ---- FITNESS FUNCTION ----
+
+
+def evaluate_population_fitness(population) -> tuple:
+    """Evaluate the fitness of a population of robots."""
+    fitness_scores = []
+    rewards = []
+
+    if not MULTIPROCESSING:
+        # Sequential execution if multiprocessing is not enabled
+        for robot in population:
+            fitness_score, reward = evaluate_fitness(robot)
+            fitness_scores.append(fitness_score)
+            rewards.append(reward)
+        return fitness_scores, rewards
+
+    # Use more than one process, e.g., the number of available CPU cores
+    # Be mindful of resource limits and potential overhead
+    # Use number of robots or CPU cores, whichever is smaller
+    num_processes = min(len(population), os.cpu_count())
+    if num_processes > 1:  # Only use multiprocessing if beneficial
+        try:
+            # Ensure the main script execution is guarded by if __name__ == "__main__":
+            # This is crucial for multiprocessing on Windows.
+            with multiprocessing.Pool(processes=8) as pool:
+                results = pool.map(evaluate_fitness, population)
+
+            for fitness_score, reward in results:
+                fitness_scores.append(fitness_score)
+                rewards.append(reward)
+        except Exception as e:
+            print(
+                f"Multiprocessing failed: {e}. Falling back to sequential execution.")
+            # Fallback to sequential execution if multiprocessing fails
+            for robot in population:
+                fitness_score, reward = evaluate_fitness(robot)
+                fitness_scores.append(fitness_score)
+                rewards.append(reward)
+    else:
+        # Execute sequentially if only one process is needed or available
+        for robot in population:
+            fitness_score, reward = evaluate_fitness(robot)
+            fitness_scores.append(fitness_score)
+            rewards.append(reward)
+
+    return fitness_scores, rewards
 
 
 def evaluate_fitness(weights, view=False):
@@ -132,40 +177,57 @@ def get_flat_params(brain):
 # ---- RANDOM SEARCH ALGORITHM ----
 def random_search_algorithm():
     best_fitness = -np.inf
-    best_weights = None
+    best_params = None
+    best_reward = 0
 
     best_fitness_history = []
     average_fitness_history = []
     best_reward_history = []
     average_reward_history = []
 
+    print("Starting random search...")
+
     for generation in range(NUM_GENERATIONS):
-        random_weights = [np.random.randn(*param.shape)
-                          for param in brain.parameters()]
+        # Generate population of random weights
+        population = []
+        for _ in range(POPULATION_SIZE):
+            param_vector = np.random.randn(
+                sum(p.numel() for p in brain.parameters()))
+            population.append(param_vector)
 
-        fitness, reward = evaluate_fitness(random_weights)
+        # Evaluate all individuals in the population
+        fitness_scores, rewards = evaluate_population_fitness([
+            utils.get_param_as_weights(params, model=brain) for params in population
+        ])
 
-        if fitness > best_fitness:
-            best_fitness = fitness
-            best_weights = random_weights
-            best_reward = reward
+        # Find the best individual in the current generation
+        best_idx = np.argmax(fitness_scores)
+        current_best_fitness = fitness_scores[best_idx]
+        current_best_params = population[best_idx]
+        current_best_reward = rewards[best_idx]
+
+        # Update best overall solution if better was found
+        if current_best_fitness > best_fitness:
+            best_fitness = current_best_fitness
+            best_params = current_best_params.copy()
+            best_reward = current_best_reward
             print(f"Gen {generation+1}: New best fitness = {best_fitness:.2f}")
         else:
             print(
                 f"Gen {generation+1}: No improvement (best={best_fitness:.2f})")
 
+        # Save history
         best_fitness_history.append(best_fitness)
-        average_fitness_history.append(best_fitness)
-        best_reward_history.append(
-            best_reward if 'best_reward' in locals() else reward)
-        average_reward_history.append(
-            best_reward if 'best_reward' in locals() else reward)
+        average_fitness_history.append(np.mean(fitness_scores))
+        best_reward_history.append(best_reward)
+        average_reward_history.append(np.mean(rewards))
 
     # Set the best weights found
-    utils.set_weights(brain, best_weights)
+    utils.set_weights(brain, utils.get_param_as_weights(
+        best_params, model=brain))
 
     return (
-        best_weights,
+        best_params,
         best_fitness,
         best_fitness_history,
         average_fitness_history,
@@ -384,7 +446,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = one_plus_one_es()
+        ) = random_search_algorithm()
 
         end_time = time.time()
 
@@ -401,7 +463,6 @@ if __name__ == "__main__":
 
         with open(os.path.join(run_folder, "run.json"), "w") as f:
             json.dump(run_info, f, indent=4)
-  
 
         # Create a GIF of the best performing controller
         utils.create_gif_nn(
