@@ -401,9 +401,7 @@ if __name__ == "__main__":
 
         with open(os.path.join(run_folder, "run.json"), "w") as f:
             json.dump(run_info, f, indent=4)
-
-        brain = NeuralController(input_size, output_size)
-        utils.set_weights(brain, best_controller_params)
+  
 
         # Create a GIF of the best performing controller
         utils.create_gif_nn(
