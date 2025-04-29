@@ -8,6 +8,7 @@ import json
 import multiprocessing
 from evogym.envs import *
 from evogym import EvoViewer, get_full_connectivity
+from crossover_operators import binomial_crossover
 from neural_controller import *
 import utils
 
@@ -34,7 +35,7 @@ ELITISM = True  # Whether to use elitism or not
 ELITE_SIZE = 1  # Number of elite individuals to carry over to the next generation
 
 # -- For Robot Eval ---
-MULTIPROCESSING = False  # Whether to use multiprocessing or not
+MULTIPROCESSING = True  # Whether to use multiprocessing or not
 
 # ---- Fixed Robot Structure ----
 robot_structure = np.array([
@@ -371,6 +372,120 @@ def mu_plus_lambda_es(mu=MU, lamb=LAMBDA):
     )
 
 
+# ---- DIFFERENTIAL EVOLUTION ----
+# Added cr parameter
+def differential_evolution(pop_size=POPULATION_SIZE, scale=0.2, cr=0.5):
+    # initialization
+    # Generate population of random weights
+    population = []
+    for _ in range(pop_size):  # Use pop_size here
+        param_vector = np.random.randn(
+            sum(p.numel() for p in brain.parameters()))
+        population.append(param_vector)
+
+    # Evaluate initial population
+    fitness_scores, rewards = evaluate_population_fitness([
+        utils.get_param_as_weights(params, model=brain) for params in population
+    ])
+
+    best_fitness_idx = np.argmax(fitness_scores)
+    best_fitness = fitness_scores[best_fitness_idx]
+    best_params = population[best_fitness_idx].copy()
+    # Correctly initialize best_reward based on initial population
+    # Use the reward corresponding to the best fitness
+    best_reward = rewards[best_fitness_idx]
+
+    best_fitness_history = [best_fitness]  # Store initial best
+    average_fitness_history = [
+        np.mean(fitness_scores)]  # Store initial average
+    best_reward_history = [best_reward]  # Store initial best reward
+    average_reward_history = [np.mean(rewards)]  # Store initial average reward
+
+    print(
+        f"Initial best fitness: {best_fitness:.2f}, Initial avg fitness: {average_fitness_history[0]:.2f}")
+
+    for generation in range(NUM_GENERATIONS):
+        trial_vectors = []  # Collect trial vectors for batch evaluation
+
+        # Generate trial vectors for the entire population
+        for i in range(pop_size):
+            # Mutation
+            idxs = list(range(pop_size))
+            idxs.remove(i)
+            a, b, c = random.sample(idxs, 3)
+            mutant_vector = population[a] + \
+                scale * (population[b] - population[c])
+
+            # Crossover
+            trial_vector = binomial_crossover(
+                population[i], mutant_vector, cr=cr)
+            trial_vectors.append(trial_vector)
+
+        # Evaluate all trial vectors using multiprocessing if enabled
+        trial_fitness_scores, trial_rewards = evaluate_population_fitness([
+            utils.get_param_as_weights(params, model=brain) for params in trial_vectors
+        ])
+
+        new_population = []
+        new_fitness_scores = []
+        new_rewards = []
+
+        # Selection: Compare trial vectors with current population
+        for i in range(pop_size):
+            # Keep trial if better or equal
+            if trial_fitness_scores[i] >= fitness_scores[i]:
+                new_population.append(trial_vectors[i])
+                new_fitness_scores.append(trial_fitness_scores[i])
+                new_rewards.append(trial_rewards[i])
+
+                # Check for new overall best
+                if trial_fitness_scores[i] > best_fitness:
+                    best_fitness = trial_fitness_scores[i]
+                    best_params = trial_vectors[i].copy()
+                    best_reward = trial_rewards[i]
+                    # Print improvement immediately when found
+                    # print(f"Gen {generation+1}: New best fitness = {best_fitness:.2f}")
+            else:
+                new_population.append(population[i])
+                new_fitness_scores.append(fitness_scores[i])
+                new_rewards.append(rewards[i])
+
+        # Update population and scores for the next generation
+        population = new_population
+        fitness_scores = new_fitness_scores
+        rewards = new_rewards
+
+        # Update best fitness/reward for the generation (in case the best was replaced by a worse one but is still the best overall)
+        current_gen_best_idx = np.argmax(fitness_scores)
+        if fitness_scores[current_gen_best_idx] > best_fitness:
+            best_fitness = fitness_scores[current_gen_best_idx]
+            best_params = population[current_gen_best_idx].copy()
+            best_reward = rewards[current_gen_best_idx]
+
+        # Save history for the generation
+        best_fitness_history.append(best_fitness)
+        average_fitness_history.append(np.mean(fitness_scores))
+        # Track the best reward found so far
+        best_reward_history.append(best_reward)
+        average_reward_history.append(np.mean(rewards))
+
+        print(
+            f"Gen {generation+1}: Best Fitness={best_fitness:.2f}, Avg Fitness={average_fitness_history[-1]:.2f}, Best Reward={best_reward:.2f}, Avg Reward={average_reward_history[-1]:.2f}")
+
+    # Set the best weights found
+    utils.set_weights(brain, utils.get_param_as_weights(
+        best_params, model=brain))
+
+    return (
+        best_params,
+        best_fitness,
+        best_fitness_history,
+        average_fitness_history,
+        best_reward_history,
+        average_reward_history,
+    )
+
+
 def setup_run(seed):
     np.random.seed(seed)
     random.seed(seed)
@@ -389,7 +504,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(1.1)(1+1) Evolution Strategy",
+        "name": "(2.1)DeRand1Bin",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -439,6 +554,7 @@ if __name__ == "__main__":
 
         start_time = time.time()
 
+        # ***********************************************************************************
         (
             best_controller_params,
             best_fitness,
@@ -446,7 +562,8 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = random_search_algorithm()
+        ) = differential_evolution(pop_size=POPULATION_SIZE, scale=0.2, cr=0.5)
+        # ***********************************************************************************
 
         end_time = time.time()
 
