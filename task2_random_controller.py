@@ -8,15 +8,15 @@ import json
 import multiprocessing
 from evogym.envs import *
 from evogym import EvoViewer, get_full_connectivity
-from crossover_operators import binomial_crossover, uniform_crossover
-from mutation_operators import flip_mutation
+from crossover_operators import arithmetic_crossover, binomial_crossover, uniform_crossover
+from mutation_operators import flip_mutation, gaussian_dist_mutation
 from neural_controller import *
 from random_structure import tournament_selection
 import utils
 
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 250  # Number of generations to evolve
+NUM_GENERATIONS = 15  # Number of generations to evolve
 POPULATION_SIZE = 20  # Number of robots per generation
 STEPS = 500
 
@@ -32,7 +32,7 @@ LAMBDA = 5  # Number of offspring
 MUTATION_RATE = 0.15  # Probability of mutation
 
 # Selection Params
-TOURNAMENT_SIZE = 2  # Number of individuals in the tournament for selection
+TOURNAMENT_SIZE = 4  # Number of individuals in the tournament for selection
 ELITISM = True  # Whether to use elitism or not
 ELITE_SIZE = 1  # Number of elite individuals to carry over to the next generation
 
@@ -520,7 +520,7 @@ def evolutionary_algorithm(elitism=ELITISM):
 
     best_reward = reward_scores[best_initial_reward_idx]
     best_fitness = fitness_scores[best_initial_fitness_idx]
-    best_robot = population[best_initial_fitness_idx]
+    best_params = population[best_initial_fitness_idx]
 
     best_fitness_history = []
     average_fitness_history = []
@@ -546,14 +546,18 @@ def evolutionary_algorithm(elitism=ELITISM):
 
             # *************************************************************************************
             # Select parents using tournament selection
-            parent1 = tournament_selection(population, fitness_scores)
-            parent2 = tournament_selection(population, fitness_scores)
+            parent1 = tournament_selection(
+                population, fitness_scores, k=TOURNAMENT_SIZE)
+            parent2 = tournament_selection(
+                population, fitness_scores, k=TOURNAMENT_SIZE)
 
             # Change here to create different types of evolutionary algorithms
             # Apply crossover to produce offspring
-            offspring = uniform_crossover(parent1, parent2)
+            offspring = arithmetic_crossover(
+                parent1, parent2, alpha=0.6)
             # Apply mutation
-            offspring = flip_mutation(offspring, MUTATION_RATE)
+            offspring = gaussian_dist_mutation(weight_vector=offspring,
+                                               MUTATION_RATE=MUTATION_RATE, sigma=0.3)
 
             # **************************************************************************************
 
@@ -567,7 +571,7 @@ def evolutionary_algorithm(elitism=ELITISM):
 
         if fitness_scores[best_fitness_idx] > best_fitness:
             best_fitness = fitness_scores[best_fitness_idx]
-            best_robot = population[best_fitness_idx]
+            best_params = population[best_fitness_idx].copy()
 
         if fitness_scores[best_fitness_idx] > best_gen_fitness:
             best_gen_fitness = fitness_scores[best_fitness_idx]
@@ -591,7 +595,7 @@ def evolutionary_algorithm(elitism=ELITISM):
         )
 
     return (
-        best_robot,
+        best_params,
         best_fitness,
         best_fitness_history,
         average_fitness_history,

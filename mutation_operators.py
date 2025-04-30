@@ -45,3 +45,13 @@ def swap_mutation(robot_structure, MUTATION_RATE):
     mutated_robot = vector.reshape(robot_structure.shape)
 
     return mutated_robot
+
+
+def gaussian_dist_mutation(weight_vector, MUTATION_RATE, sigma=0.1):
+    mutated_vector = np.copy(weight_vector)
+
+    for i in range(len(mutated_vector)):
+        if random.random() < MUTATION_RATE:
+            mutated_vector[i] += np.random.normal(0, sigma)
+
+    return mutated_vector

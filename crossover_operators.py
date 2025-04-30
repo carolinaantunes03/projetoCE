@@ -47,3 +47,18 @@ def binomial_crossover(vector1, vector2, cr):
     offspring = np.where(mask, vector1, vector2)
 
     return offspring
+
+
+def arithmetic_crossover(vector1, vector2, alpha=0.3):
+    # flatten the vectors to 1D
+    vector1 = vector1.flatten()
+    vector2 = vector2.flatten()
+
+    # Ensure the vectors are of the same shape
+    if vector1.shape != vector2.shape:
+        raise ValueError("Input vectors must have the same shape.")
+
+    # Perform arithmetic crossover
+    offspring = alpha * vector1 + (1 - alpha) * vector2
+
+    return offspring.reshape(vector1.shape)
