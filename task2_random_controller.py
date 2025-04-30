@@ -8,14 +8,16 @@ import json
 import multiprocessing
 from evogym.envs import *
 from evogym import EvoViewer, get_full_connectivity
-from crossover_operators import binomial_crossover
+from crossover_operators import binomial_crossover, uniform_crossover
+from mutation_operators import flip_mutation
 from neural_controller import *
+from random_structure import tournament_selection
 import utils
 
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 5  # Number of generations to evolve
-POPULATION_SIZE = 5  # Number of robots per generation
+NUM_GENERATIONS = 250  # Number of generations to evolve
+POPULATION_SIZE = 20  # Number of robots per generation
 STEPS = 500
 
 # (1+1) Evolution Strategy Params
@@ -500,6 +502,104 @@ def cma_es(populationSize=POPULATION_SIZE, muRatio=0.5):
     )
 
 
+# --- GENETIC ALGORITHM FROM TASK 1 ---
+def evolutionary_algorithm(elitism=ELITISM):
+
+    population = []
+
+    for _ in range(POPULATION_SIZE):
+        param_vector = np.random.randn(
+            sum(p.numel() for p in brain.parameters()))
+        population.append(param_vector)
+
+    fitness_scores, reward_scores = evaluate_population_fitness(population)
+
+    # initialize overall best tracking
+    best_initial_fitness_idx = np.argmax(fitness_scores)
+    best_initial_reward_idx = np.argmax(reward_scores)
+
+    best_reward = reward_scores[best_initial_reward_idx]
+    best_fitness = fitness_scores[best_initial_fitness_idx]
+    best_robot = population[best_initial_fitness_idx]
+
+    best_fitness_history = []
+    average_fitness_history = []
+    best_reward_history = []
+    average_reward_history = []
+
+    for generation in range(NUM_GENERATIONS):
+        best_gen_fitness = -float("inf")
+        best_gen_reward = -float("inf")
+
+        new_population = []
+
+        if elitism == True:
+            # Get indices sorted by fitness
+            sorted_indices = np.argsort(fitness_scores)[::-1]
+
+            elites = [population[i] for i in sorted_indices[:ELITE_SIZE]]
+
+            # Add elites to the new population
+            new_population.extend(elites)
+
+        while len(new_population) < POPULATION_SIZE:
+
+            # *************************************************************************************
+            # Select parents using tournament selection
+            parent1 = tournament_selection(population, fitness_scores)
+            parent2 = tournament_selection(population, fitness_scores)
+
+            # Change here to create different types of evolutionary algorithms
+            # Apply crossover to produce offspring
+            offspring = uniform_crossover(parent1, parent2)
+            # Apply mutation
+            offspring = flip_mutation(offspring, MUTATION_RATE)
+
+            # **************************************************************************************
+
+            new_population.append(offspring)
+
+        population = new_population
+        fitness_scores, rewards = evaluate_population_fitness(population)
+
+        best_fitness_idx = np.argmax(fitness_scores)
+        best_reward_idx = np.argmax(rewards)
+
+        if fitness_scores[best_fitness_idx] > best_fitness:
+            best_fitness = fitness_scores[best_fitness_idx]
+            best_robot = population[best_fitness_idx]
+
+        if fitness_scores[best_fitness_idx] > best_gen_fitness:
+            best_gen_fitness = fitness_scores[best_fitness_idx]
+
+        if rewards[best_reward_idx] > best_reward:
+            best_reward = rewards[best_reward_idx]
+
+        if rewards[best_reward_idx] > best_gen_reward:
+            best_gen_reward = rewards[best_reward_idx]
+
+        average_fitness = np.mean(fitness_scores)
+        average_reward = np.mean(rewards)
+
+        best_fitness_history.append(best_gen_fitness)
+        average_fitness_history.append(average_fitness)
+        best_reward_history.append(best_gen_reward)
+        average_reward_history.append(average_reward)
+
+        print(
+            f"Gen. {generation + 1} | Curr.Fit. = {fitness_scores[best_fitness_idx]:.2f} | BestFitGen. = {best_fitness:.2f} | BestFitOvr. = {best_fitness:.2f} | Avg.Fit. = {average_fitness:.2f} | BestRewardGen = {best_reward:.2f} | Avg.Reward = {average_reward:.2f}"
+        )
+
+    return (
+        best_robot,
+        best_fitness,
+        best_fitness_history,
+        average_fitness_history,
+        best_reward_history,
+        average_reward_history,
+    )
+
+
 # ---- DIFFERENTIAL EVOLUTION ----
 def differential_evolution(pop_size=POPULATION_SIZE, scale=0.5, cr=0.5, mutant_selection="rand"):
     # initialization
@@ -642,7 +742,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(2.1)DeRand1BinBiggerNN",
+        "name": "(task1)BestGATask1",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -700,7 +800,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = differential_evolution(pop_size=POPULATION_SIZE, scale=0.5, cr=0.5, mutant_selection="rand")
+        ) = evolutionary_algorithm(elitism=ELITISM)
         # ***********************************************************************************
 
         end_time = time.time()
