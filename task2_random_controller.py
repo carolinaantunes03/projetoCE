@@ -374,7 +374,7 @@ def mu_plus_lambda_es(mu=MU, lamb=LAMBDA):
 
 # ---- DIFFERENTIAL EVOLUTION ----
 # Added cr parameter
-def differential_evolution(pop_size=POPULATION_SIZE, scale=0.5, cr=0.5):
+def differential_evolution(pop_size=POPULATION_SIZE, scale=0.5, cr=0.5, mutant_selection="rand"):
     # initialization
     # Generate population of random weights
     population = []
@@ -410,11 +410,22 @@ def differential_evolution(pop_size=POPULATION_SIZE, scale=0.5, cr=0.5):
         # Generate trial vectors for the entire population
         for i in range(pop_size):
             # Mutation
-            idxs = list(range(pop_size))
-            idxs.remove(i)
-            a, b, c = random.sample(idxs, 3)
-            mutant_vector = population[a] + \
-                scale * (population[b] - population[c])
+            if mutant_selection == "rand":  # DE/rand/1
+                idxs = list(range(pop_size))
+                idxs.remove(i)
+                a, b, c = random.sample(idxs, 3)
+                mutant_vector = population[a] + \
+                    scale * (population[b] - population[c])
+
+            elif mutant_selection == "best":  # DE/best/1
+                idxs = list(range(pop_size))
+                idxs.remove(i)
+                a, b = random.sample(idxs, 2)
+                mutant_vector = population[best_fitness_idx] + \
+                    scale * (population[a] - population[b])
+
+            else:
+                raise ValueError("Invalid mutant selection method.")
 
             # Crossover
             trial_vector = binomial_crossover(
@@ -504,7 +515,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(2.1)DeRand1BinScale1",
+        "name": "(2.1)DeBest1Bin",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -562,7 +573,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = differential_evolution(pop_size=POPULATION_SIZE, scale=1, cr=0.5)
+        ) = differential_evolution(pop_size=POPULATION_SIZE, scale=0.5, cr=0.5, mutant_selection="best")
         # ***********************************************************************************
 
         end_time = time.time()
