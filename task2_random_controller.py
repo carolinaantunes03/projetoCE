@@ -14,8 +14,8 @@ import utils
 
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 250  # Number of generations to evolve
-POPULATION_SIZE = 20  # Number of robots per generation
+NUM_GENERATIONS = 20  # Number of generations to evolve
+POPULATION_SIZE = 10  # Number of robots per generation
 STEPS = 500
 
 # (1+1) Evolution Strategy Params
@@ -372,8 +372,135 @@ def mu_plus_lambda_es(mu=MU, lamb=LAMBDA):
     )
 
 
+# ---- CMA-ES ----
+# from: https://algorithmafternoon.com/strategies/covariance_matrix_adaptation_evolution_strategy/
+def cma_es(populationSize=POPULATION_SIZE, muRatio=0.5):
+
+    best_fitness = -np.inf
+    best_params = None
+    best_reward = 0
+
+    best_fitness_history = []
+    average_fitness_history = []
+    best_reward_history = []
+    average_reward_history = []
+    # Initialization
+
+    # Initialize mean to random point in the search space
+    mean = np.random.randn(sum(p.numel() for p in brain.parameters()))
+
+    # Initialize covariance to identity matrix
+
+    covariance = np.eye(len(mean))
+
+    # Initialize step size to a suitable value in the search space bounds
+
+    stepSize = 0.5 * np.std(mean)
+
+    # Compute cumulationFactor and dampFactor based on muEffective and the dimensionality
+
+    muEffective = int(muRatio * populationSize)
+
+    dimensionality = len(mean)
+
+    # Defaults from the source
+
+    cumulationFactor = (muEffective + 2) / (dimensionality + muEffective + 5)
+
+    dampFactor = 1 + 2 * \
+        max(0, np.sqrt((muEffective - 1)/(dimensionality + 1)) - 1) + cumulationFactor
+
+    # Small constant to add to the diagonal of the covariance matrix for numerical stability
+    epsilon = 1e-8
+
+    for generation in range(NUM_GENERATIONS):
+        # Main Loop:
+        # 1. Sample a population of populationSize candidate solutions from a multivariate normal distribution with mean and covariance * (stepSize^2)
+        try:
+            # Add regularization to the covariance matrix to prevent SVD errors
+            regularized_covariance = covariance * \
+                (stepSize**2) + epsilon * np.eye(dimensionality)
+            population = np.random.multivariate_normal(
+                mean, regularized_covariance, populationSize)
+        except np.linalg.LinAlgError as e:
+            print(
+                f"Warning: LinAlgError during sampling: {e}. Resetting covariance and step size.")
+            # Reset covariance and step size if sampling fails
+            covariance = np.eye(dimensionality)
+            # Avoid zero std dev
+            stepSize = 0.5 * np.std(mean) if np.std(mean) > 1e-6 else 0.5
+            regularized_covariance = covariance * \
+                (stepSize**2) + epsilon * np.eye(dimensionality)
+            population = np.random.multivariate_normal(
+                mean, regularized_covariance, populationSize)
+
+        # 2. Evaluate the fitness of each candidate solution using the objective function
+        fitness_scores_list, rewards_list = evaluate_population_fitness([
+            utils.get_param_as_weights(params, model=brain) for params in population
+        ])
+        # Convert lists to numpy arrays for advanced indexing
+        fitness_scores = np.array(fitness_scores_list)
+        rewards = np.array(rewards_list)
+
+        # 3. Select the best muEffective solutions based on their rank in fitness scores
+
+        sorted_indices = np.argsort(fitness_scores)[::-1]
+        selected_indices = sorted_indices[:muEffective]
+        selected_solutions = population[selected_indices]
+        selected_fitness_scores = fitness_scores[selected_indices]
+        selected_rewards = rewards[selected_indices]
+
+        # 4. Update mean to the weighted average of the selected solutions
+
+        mean = np.mean(
+            selected_solutions, axis=0)
+
+        # 5. Update covariance based on the selected solutions and the cumulative path of successful mutations
+
+        # This is a simplified version of the covariance update step
+
+        covariance = np.cov(selected_solutions, rowvar=False) + \
+            np.outer(mean, mean) * (1 - cumulationFactor)
+
+        # 6. Update stepSize based on the cumulative path of successful mutations and the dampFactor
+
+        stepSize *= np.exp((np.linalg.norm(mean) - 1) / dampFactor)
+
+        # 7. Update the best solution found so far
+        best_fitness_idx = np.argmax(fitness_scores)
+        best_reward_idx = np.argmax(rewards)
+
+        if fitness_scores[best_fitness_idx] > best_fitness:
+            best_fitness = fitness_scores[best_fitness_idx]
+            best_params = population[best_fitness_idx].copy()
+
+        if rewards[best_reward_idx] > best_reward:
+            best_reward = rewards[best_reward_idx]
+
+        # Save history
+        best_fitness_history.append(best_fitness)
+        average_fitness_history.append(np.mean(fitness_scores))
+        best_reward_history.append(best_reward)
+        average_reward_history.append(np.mean(rewards))
+
+        # Print the best fitness and average fitness for the current generation
+        print(f"Gen {generation+1}: Best Fitness={best_fitness:.2f}, Avg Fitness={np.mean(fitness_scores):.2f}, Best Reward={best_reward:.2f}, Avg Reward={np.mean(rewards):.2f}")
+
+    # Set the best weights found
+    utils.set_weights(brain, utils.get_param_as_weights(
+        best_params, model=brain))
+
+    return (
+        best_params,
+        best_fitness,
+        best_fitness_history,
+        average_fitness_history,
+        best_reward_history,
+        average_reward_history,
+    )
+
+
 # ---- DIFFERENTIAL EVOLUTION ----
-# Added cr parameter
 def differential_evolution(pop_size=POPULATION_SIZE, scale=0.5, cr=0.5, mutant_selection="rand"):
     # initialization
     # Generate population of random weights
@@ -515,7 +642,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(2.1)DeBest1Bin",
+        "name": "mupluslambdase",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -573,7 +700,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = differential_evolution(pop_size=POPULATION_SIZE, scale=0.5, cr=0.5, mutant_selection="best")
+        ) = mu_plus_lambda_es()
         # ***********************************************************************************
 
         end_time = time.time()
