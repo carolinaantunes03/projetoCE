@@ -8,8 +8,8 @@ import torch.nn as nn
 class NeuralController(nn.Module):
     def __init__(self, input_size, output_size):
         super(NeuralController, self).__init__()
-        self.fc1 = nn.Linear(input_size, 16)  # Hidden layer with 16 neurons
-        self.fc2 = nn.Linear(16, output_size)  # Output layer
+        self.fc1 = nn.Linear(input_size, 32)  # Hidden layer with 16 neurons
+        self.fc2 = nn.Linear(32, output_size)  # Output layer
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))  # Activation function

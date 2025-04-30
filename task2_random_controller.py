@@ -642,7 +642,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "mupluslambdase",
+        "name": "(2.1)DeRand1BinBiggerNN",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -700,7 +700,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = mu_plus_lambda_es()
+        ) = differential_evolution(pop_size=POPULATION_SIZE, scale=0.5, cr=0.5, mutant_selection="rand")
         # ***********************************************************************************
 
         end_time = time.time()
