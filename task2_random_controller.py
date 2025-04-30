@@ -14,8 +14,8 @@ import utils
 
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 5  # Number of generations to evolve
-POPULATION_SIZE = 10  # Number of robots per generation
+NUM_GENERATIONS = 250  # Number of generations to evolve
+POPULATION_SIZE = 20  # Number of robots per generation
 STEPS = 500
 
 # (1+1) Evolution Strategy Params
@@ -374,7 +374,7 @@ def mu_plus_lambda_es(mu=MU, lamb=LAMBDA):
 
 # ---- DIFFERENTIAL EVOLUTION ----
 # Added cr parameter
-def differential_evolution(pop_size=POPULATION_SIZE, scale=0.2, cr=0.5):
+def differential_evolution(pop_size=POPULATION_SIZE, scale=0.5, cr=0.5):
     # initialization
     # Generate population of random weights
     population = []
@@ -504,7 +504,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(2.1)DeRand1Bin",
+        "name": "(2.1)DeRand1BinScale1",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -562,7 +562,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = differential_evolution(pop_size=POPULATION_SIZE, scale=0.2, cr=0.5)
+        ) = differential_evolution(pop_size=POPULATION_SIZE, scale=1, cr=0.5)
         # ***********************************************************************************
 
         end_time = time.time()

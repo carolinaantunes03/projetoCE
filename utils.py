@@ -140,7 +140,7 @@ def create_gif_nn(weights, brain, robot_structure, scenario, steps, filename='be
         t_reward = 0
 
         frames = []
-        for t in range(200):
+        for t in range(400):
             state_tensor = torch.tensor(
                 state, dtype=torch.float32).unsqueeze(0)
 
