@@ -14,8 +14,8 @@ import utils
 
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 20  # Number of generations to evolve
-POPULATION_SIZE = 10  # Number of robots per generation
+NUM_GENERATIONS = 5  # Number of generations to evolve
+POPULATION_SIZE = 5  # Number of robots per generation
 STEPS = 500
 
 # (1+1) Evolution Strategy Params
@@ -720,11 +720,10 @@ if __name__ == "__main__":
             json.dump(run_info, f, indent=4)
 
         # Create a GIF of the best performing controller
-        utils.create_gif_nn(
-            weights=best_controller_params,
+        utils.create_gif_brain(
             robot_structure=robot_structure,
+            brain=brain,
             filename=os.path.join(run_folder, "best_robot.gif"),
             scenario=SCENARIO,
             steps=STEPS,
-            brain=brain,
         )
