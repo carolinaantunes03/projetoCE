@@ -1,0 +1,15 @@
+{
+    "name": "(task1)BestGATask1",
+    "repetitions": 5,
+    "num_generations": 250,
+    "sigma": 0.1,
+    "alpha": 0.25,
+    "steps": 500,
+    "population_size": 20,
+    "mutation_rate": 0.15,
+    "mu": 5,
+    "lamb": 5,
+    "controller": "NeuralController",
+    "scenario": "DownStepper-v0",
+    "time": "D30_M04_18_41"
+}
