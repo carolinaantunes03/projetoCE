@@ -16,9 +16,9 @@ import utils
 
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 250  # Number of generations to evolve
-POPULATION_SIZE = 20  # Number of robots per generation
-STEPS = 500
+NUM_GENERATIONS = 10  # Number of generations to evolve
+POPULATION_SIZE = 10  # Number of robots per generation
+STEPS = 250
 
 # (1+1) Evolution Strategy Params
 SIGMA = 0.1
@@ -513,8 +513,8 @@ def evolutionary_algorithm(elitism=ELITISM):
         population.append(param_vector)
 
     fitness_scores, reward_scores = evaluate_population_fitness([
-            utils.get_param_as_weights(params, model=brain) for params in population
-        ])
+        utils.get_param_as_weights(params, model=brain) for params in population
+    ])
 
     # initialize overall best tracking
     best_initial_fitness_idx = np.argmax(fitness_scores)
