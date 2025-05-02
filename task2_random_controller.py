@@ -26,7 +26,7 @@ ALPHA = 0.25
 
 # (μ + λ) Evolution Strategy Params
 MU = 5  # Number of parents
-LAMBDA = 5  # Number of offspring
+LAMBDA = 20  # Number of offspring
 
 # Mutation Params
 MUTATION_RATE = 0.15  # Probability of mutation
@@ -294,75 +294,87 @@ def one_plus_one_es():
 # ---- (μ + λ) EVOLUTION STRATEGY ----
 
 
-def mu_plus_lambda_es(mu=MU, lamb=LAMBDA):
-    # Evaluate initial mu parents
-    parents = []
+def mu_plus_lambda_es(mu=MU, lamb=LAMBDA, alpha=ALPHA, sigma=SIGMA):
+
+    # mu-> number of parent solutions in the population
+    # lamb-> number of offspring solutions to be generated from the parents at each generation
+
+    # 1. init pop with mu random solutions
+    population = []
     for _ in range(mu):
-        param_vector = get_flat_params(brain)
-        fitness, reward = evaluate_fitness(
-            utils.get_param_as_weights(param_vector, model=brain))
-        parents.append(
-            {'params': param_vector, 'fitness': fitness, 'reward': reward})
+        param_vector = np.random.randn(
+            sum(p.numel() for p in brain.parameters()))
+        population.append(param_vector)
 
-    # Sort parents by fitness descending
-    parents.sort(key=lambda x: x['fitness'], reverse=True)
+    # 2. evaluate fitness of each solution in the population
+    fitness_scores, rewards = evaluate_population_fitness([
+        utils.get_param_as_weights(params, model=brain) for params in population
+    ])
 
-    best_params = parents[0]['params'].copy()
-    best_fitness = parents[0]['fitness']
-    best_reward = parents[0]['reward']
+    best_fitness_idx = np.argmax(fitness_scores)
+    best_reward_idx = np.argmax(rewards)
 
-    best_fitness_history = [best_fitness]
-    average_fitness_history = [np.mean([p['fitness'] for p in parents])]
-    best_reward_history = [best_reward]
-    average_reward_history = [np.mean([p['reward'] for p in parents])]
+    best_fitness = fitness_scores[best_fitness_idx]
+    best_reward = rewards[best_reward_idx]
+    best_params = population[best_fitness_idx].copy()
 
-    print(f"Initial best fitness: {best_fitness:.2f}")
+    # init hist lists
+    best_fitness_history = []
+    average_fitness_history = []
+    best_reward_history = []
+    average_reward_history = []
 
-    # Calculate max generations based on budget:
-    max_generations = (NUM_GENERATIONS - mu) // lamb
+    for generation in range(NUM_GENERATIONS):
 
-    for generation in range(max_generations):
-        offspring = []
-
-        # For each offspring, choose a parent to mutate (can do uniform random or tournament)
+        offspring_population = []
         for _ in range(lamb):
-            parent = random.choice(parents)
-            child_params = parent['params'].copy()
-            # Mutation like in 1+1 ES:
-            for i in range(len(child_params)):
-                if np.random.rand() < ALPHA:
-                    child_params[i] += SIGMA * np.random.randn()
+            # 3.1 select parent solution randomly from the population
+            parent = random.choice(population)
 
-            child_fitness, child_reward = evaluate_fitness(
-                utils.get_param_as_weights(child_params, model=brain))
-            offspring.append(
-                {'params': child_params, 'fitness': child_fitness, 'reward': child_reward})
+            # 3.2 create offspring by applying mutation to the parent solution
+            offspring = parent.copy()
+            # Apply mutation to each parameter with probability ALPHA
+            # SIGMA is the mutation step size (the standard deviation of the Gaussian noise)
+            for i in range(len(offspring)):
+                if np.random.rand() < alpha:
+                    offspring[i] += sigma * np.random.randn()
 
-        # Combine parents + offspring and select top mu individuals
-        combined = parents + offspring
-        combined.sort(key=lambda x: x['fitness'], reverse=True)
-        parents = combined[:mu]
+            offspring_population.append(offspring)
 
-        # Track stats from the new parent population
-        current_best = parents[0]
-        if current_best['fitness'] > best_fitness:
-            best_fitness = current_best['fitness']
-            best_params = current_best['params'].copy()
-            best_reward = current_best['reward']
-            print(f"Gen {generation+1}: New best fitness = {best_fitness:.2f}")
-        else:
-            print(
-                f"Gen {generation+1}: No improvement (best={best_fitness:.2f})")
+        # 4. evaluate fitness of each offspring solution
+        offspring_fitness_scores, offspring_rewards = evaluate_population_fitness([
+            utils.get_param_as_weights(params, model=brain) for params in offspring_population
+        ])
 
+        # 5. select the best mu solutions from the combined population of parents and offspring
+        combined_population = population + offspring_population
+        combined_fitness_scores = fitness_scores + offspring_fitness_scores
+        combined_rewards = rewards + offspring_rewards
+
+        sorted_indices = np.argsort(combined_fitness_scores)[::-1]
+        selected_indices = sorted_indices[:mu]
+        population = [combined_population[i] for i in selected_indices]
+        fitness_scores = [combined_fitness_scores[i] for i in selected_indices]
+        rewards = [combined_rewards[i] for i in selected_indices]
+
+        # 7. update the best solution found so far
+        best_fitness_idx = np.argmax(fitness_scores)
+        best_reward_idx = np.argmax(rewards)
+
+        if fitness_scores[best_fitness_idx] > best_fitness:
+            best_fitness = fitness_scores[best_fitness_idx]
+            best_params = population[best_fitness_idx].copy()
+
+        if rewards[best_reward_idx] > best_reward:
+            best_reward = rewards[best_reward_idx]
+
+        # Save history
         best_fitness_history.append(best_fitness)
-        average_fitness_history.append(
-            np.mean([p['fitness'] for p in parents]))
+        average_fitness_history.append(np.mean(fitness_scores))
         best_reward_history.append(best_reward)
-        average_reward_history.append(np.mean([p['reward'] for p in parents]))
+        average_reward_history.append(np.mean(rewards))
 
-    # Set best found weights in brain
-    utils.set_weights(brain, utils.get_param_as_weights(
-        best_params, model=brain))
+        print(f"Gen {generation+1}: Best Fitness={best_fitness:.2f}, Avg Fitness={np.mean(fitness_scores):.2f}, Best Reward={best_reward:.2f}, Avg Reward={np.mean(rewards):.2f}")
 
     return (
         best_params,
@@ -750,7 +762,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(task1)BestGATask1",
+        "name": "(1)mupluslambda",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
