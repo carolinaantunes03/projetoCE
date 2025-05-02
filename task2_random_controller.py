@@ -16,9 +16,9 @@ import utils
 
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 10  # Number of generations to evolve
-POPULATION_SIZE = 10  # Number of robots per generation
-STEPS = 250
+NUM_GENERATIONS = 250  # Number of generations to evolve
+POPULATION_SIZE = 20  # Number of robots per generation
+STEPS = 500
 
 # (1+1) Evolution Strategy Params
 SIGMA = 0.1
