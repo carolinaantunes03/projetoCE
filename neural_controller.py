@@ -15,6 +15,19 @@ class NeuralController(nn.Module):
         x = torch.relu(self.fc1(x))  # Activation function
         x = self.fc2(x)  # Output layer
         return torch.tanh(x) * 100  # Outputs actions for the robot
+    
+    def load_flat_weights(self, flat_weights):
+        """
+        Loads flattened weights into the neural network model.
+        
+        Args:
+            flat_weights (numpy array): Flattened weights to be loaded into the model.
+        """
+        i = 0
+        for param in self.parameters():
+            num_params = param.numel()
+            param.data.copy_(torch.tensor(flat_weights[i:i + num_params].reshape(param.shape), dtype=torch.float32))
+            i += num_params
 
 # ---- Convert Weights to NumPy Arrays ----
 
@@ -30,3 +43,5 @@ def initialize_weights(m):
     if isinstance(m, nn.Linear):
         nn.init.xavier_uniform_(m.weight)  # Xavier initialization
         nn.init.constant_(m.bias, 0.1)  # Small bias
+
+
