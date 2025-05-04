@@ -1,0 +1,12 @@
+{
+    "name": "(0)TESTE",
+    "repetitions": 5,
+    "num_generations": 5,
+    "sigma": 0.1,
+    "steps": 500,
+    "population_size": 20,
+    "mutation_rate": 0.15,
+    "controller": "NeuralController",
+    "scenario": "GapJumper-v0",
+    "time": "D04_M05_11_57"
+}

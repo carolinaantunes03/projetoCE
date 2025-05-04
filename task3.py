@@ -141,6 +141,8 @@ def evaluate_fitness(weights, structure, connectivity, brain, view=False):
     try:
         utils.set_weights(brain, weights)  # Load weights into the neural controller
 
+        connectivity = get_full_connectivity(structure)
+
         env = gym.make(
             SCENARIO,
             max_episode_steps=STEPS,
@@ -450,7 +452,7 @@ if __name__ == "__main__":
         ) = run_evolution()
 
         # Recreate env from best structure to ensure consistent input/output sizes
-        structure = best_structure.structure
+        structure = best_structure.structure.structure
         connectivity = get_full_connectivity(structure)
 
         env = gym.make(SCENARIO, max_episode_steps=STEPS, body=structure, connections=connectivity)
@@ -459,8 +461,10 @@ if __name__ == "__main__":
         output_size = env.action_space.shape[0]
 
         # Now use these sizes to rebuild the brain correctly
-        brain = NeuralController(input_size, output_size)
-        brain.load_flat_weights(best_controller_params)
+        #brain = NeuralController(input_size, output_size)
+        
+        #brain.load_flat_weights(best_controller_params)
+        brain = best_structure.controller.model  # Already initialized with correct sizes
 
 
         end_time = time.time()
