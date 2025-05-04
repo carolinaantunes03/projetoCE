@@ -473,8 +473,7 @@ def cma_es(populationSize=POPULATION_SIZE, muRatio=0.5):
 
         # This is a simplified version of the covariance update step
 
-        covariance = np.cov(selected_solutions, rowvar=False) + \
-            np.outer(mean, mean) * (1 - cumulationFactor)
+        covariance = np.cov(selected_solutions, rowvar=False) 
 
         # 6. Update stepSize based on the cumulative path of successful mutations and the dampFactor
 
@@ -762,7 +761,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(1)mupluslambda",
+        "name": "(3)CMA-ES",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -820,7 +819,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = evolutionary_algorithm(elitism=ELITISM)
+        ) = cma_es()
         # ***********************************************************************************
 
         end_time = time.time()
