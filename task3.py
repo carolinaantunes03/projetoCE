@@ -187,7 +187,7 @@ def evaluate_fitness(weights, structure, connectivity, brain, view=False):
 
         # Reward distance/time but penalize long runtimes slightly
         time_penalty_factor = 0.05
-        fitness_val = t_reward / (1 + time_penalty_factor * total_time)
+        fitness_val = t_reward 
 
         return fitness_val, t_reward
 
@@ -347,7 +347,7 @@ def run_evolution():
         population.sort(key=lambda ind: ind.fitness, reverse=True)
         next_gen = population[:ELITE_SIZE] if ELITISM else []
 
-        pairings = pairing(population, strategy="random")
+        pairings = pairing(population, strategy="random") #change this to the desired pairing strategy
         for parent1, parent2 in pairings:
             child = parent1.crossover(parent2)
             child.mutate()

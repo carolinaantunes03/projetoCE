@@ -761,7 +761,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(500)(task1)BestGATask1",
+        "name": "(3)CMA-ES",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -819,7 +819,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = evolutionary_algorithm(elitism=ELITISM)
+        ) = cma_es()
         # ***********************************************************************************
 
         end_time = time.time()
