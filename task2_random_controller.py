@@ -16,7 +16,7 @@ import utils
 
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 500  # Number of generations to evolve
+NUM_GENERATIONS = 250  # Number of generations to evolve
 POPULATION_SIZE = 20  # Number of robots per generation
 STEPS = 500
 
@@ -761,7 +761,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(3)CMA-ES",
+        "name": "(OPT)(2.1)DeRand1Bin32Neurons",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -819,7 +819,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = cma_es()
+        ) = differential_evolution()
         # ***********************************************************************************
 
         end_time = time.time()
