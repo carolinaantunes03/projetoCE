@@ -309,7 +309,7 @@ def run_evolution():
             output_size = env.action_space.shape[0]
 
             # Initialize the brain (neural controller) here
-            brain = NeuralController(input_size, output_size)
+            brain = NeuralController(input_size=input_size, output_size=output_size)
 
             if not is_connected(structure):
                 print("Disconnected robot detected, assigning low fitness.")
@@ -457,21 +457,40 @@ if __name__ == "__main__":
 
         env = gym.make(SCENARIO, max_episode_steps=STEPS, body=structure, connections=connectivity)
 
+        
+
+
         input_size = env.observation_space.shape[0]
         output_size = env.action_space.shape[0]
 
         # Now use these sizes to rebuild the brain correctly
-        #brain = NeuralController(input_size, output_size)
+        brain = NeuralController(input_size, output_size)
+
+        print(f"[DEBUG] Observation space: {env.observation_space.shape}")
+        print(f"[DEBUG] Action space: {env.action_space.shape}")
+        print(f"[DEBUG] Brain input size: {brain.fc1.in_features}")
+        print(f"[DEBUG] Brain output size: {brain.fc2.out_features}")
+
+        num_params_fc1 = self.fc1.weight.numel()  # Number of weights in fc1 layer
+        num_params_fc2 = self.fc2.weight.numel()  # Number of weights in fc2 layer
+        print(f"FC1 params: {num_params_fc1}, FC2 params: {num_params_fc2}")
+
         
-        #brain.load_flat_weights(best_controller_params)
-        brain = best_structure.controller.model  # Already initialized with correct sizes
+        brain.load_flat_weights(best_controller_params)
+        
+
+
+        #brain = best_structure.controller.model  # Already initialized with correct sizes
+
+        
 
 
         end_time = time.time()
 
         print(f"Best fitness found: {best_fitness:.2f}")
 
-        run_info["best_controller_params"] = best_controller_params.tolist()
+        #run_info["best_controller_params"] = best_controller_params.tolist()
+        run_info["best_controller_params"] = np.array(best_controller_params).tolist()
         run_info["best_fitness"] = best_fitness
         run_info["best_fitness_history"] = best_fitness_history
         run_info["average_fitness_history"] = average_fitness_history
@@ -485,7 +504,7 @@ if __name__ == "__main__":
 
 
         utils.create_gif_brain(
-            robot_structure=best_structure,
+            robot_structure=best_structure.structure.structure,
             brain=brain,
             filename=os.path.join(run_folder, "best_robot.gif"),
             scenario=SCENARIO,
