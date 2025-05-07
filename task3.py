@@ -17,7 +17,7 @@ import utils
 
 # ---- PARAMETERS ----
 NUM_GENERATIONS = 5
-POPULATION_SIZE = 20  
+POPULATION_SIZE = 20
 STEPS = 500
 
 # ---- STRUCTURE PARAMETERS ----
@@ -46,7 +46,6 @@ SCENARIOS = [
 
 
 
-
 # ---- GENOTYPE REPRESENTATION ----
 class StructureIndividual:
     def __init__(self, structure=None):
@@ -59,22 +58,22 @@ class StructureIndividual:
                 self.structure = candidate
                 break
         self.fitness = 0.0
-        self.size = np.prod(self.structure.shape)  # Store the size of the structure
+        # Store the size of the structure
+        self.size = np.prod(self.structure.shape)
 
     def random_structure(self):
         return np.random.choice(VOXEL_TYPES, size=GRID_SIZE)
 
     def mutate(self, mutation_rate, voxel_types):
-        self.structure = flip_mutation(self.structure , mutation_rate, voxel_types)
-    
+        self.structure = flip_mutation(
+            self.structure, mutation_rate, voxel_types)
+
     def crossover(self, other):
         child_grid = one_point_crossover(self.structure, other.structure)
         if is_connected(child_grid):
             return StructureIndividual(child_grid)
-        
 
-    
-    
+
 class ControllerIndividual:
     def __init__(self, input_size, output_size):
         self.model = NeuralController(input_size, output_size)
@@ -89,27 +88,30 @@ class ControllerIndividual:
             i = 0
             for param in self.model.parameters():
                 n_params = param.numel()
-                param.copy_(torch.tensor(weights[i:i+n_params].reshape(param.shape), dtype=torch.float32))
+                param.copy_(torch.tensor(
+                    weights[i:i+n_params].reshape(param.shape), dtype=torch.float32))
                 i += n_params
 
     def forward(self, x):
         with torch.no_grad():
             x = torch.tensor(x, dtype=torch.float32)
             return self.model(x).numpy()
-        
+
     def mutate(self):
-        self.controller_params = gaussian_dist_mutation(self.controller_params,MUTATION_RATE,sigma=SIGMA)
+        self.controller_params = gaussian_dist_mutation(
+            self.controller_params, MUTATION_RATE, sigma=SIGMA)
         self.set_weights(self.controller_params)
 
-
     def crossover(self, other):
-        child_params = arithmetic_crossover(self.controller_params, other.controller_params)
-        child = ControllerIndividual(input_size=len(child_params), output_size=8)
+        child_params = arithmetic_crossover(
+            self.controller_params, other.controller_params)
+        child = ControllerIndividual(
+            input_size=len(child_params), output_size=8)
         child.set_weights(child_params)
         return child
 
 
-## here we can add the variation mechanism for evolution
+# here we can add the variation mechanism for evolution
 
 # combination of both classes to create a full individual
 class Individual:
@@ -125,7 +127,7 @@ class Individual:
     def crossover(self, other):
         child_structure = self.structure.crossover(other.structure)
         child_controller = self.controller.crossover(other.controller)
-        child = Individual(input_size=len(self.controller.controller_params), 
+        child = Individual(input_size=len(self.controller.controller_params),
                            output_size=8,  # adapt if dynamic
                            structure=child_structure.structure)
         child.controller = child_controller
@@ -139,7 +141,8 @@ def evaluate_fitness(weights, structure, connectivity, brain, view=False):
         return -15.0, 0
 
     try:
-        utils.set_weights(brain, weights)  # Load weights into the neural controller
+        # Load weights into the neural controller
+        utils.set_weights(brain, weights)
 
         connectivity = get_full_connectivity(structure)
 
@@ -159,7 +162,8 @@ def evaluate_fitness(weights, structure, connectivity, brain, view=False):
         t_velocity_y = 0.0
 
         for t in range(STEPS):
-            state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+            state_tensor = torch.tensor(
+                state, dtype=torch.float32).unsqueeze(0)
             action = brain(state_tensor).detach().numpy().flatten()
 
             if view:
@@ -187,13 +191,12 @@ def evaluate_fitness(weights, structure, connectivity, brain, view=False):
 
         # Reward distance/time but penalize long runtimes slightly
         time_penalty_factor = 0.05
-        fitness_val = t_reward 
+        fitness_val = t_reward
 
         return fitness_val, t_reward
 
     except (ValueError, IndexError) as e:
         return -15.0, 0  # Penalize invalid individuals
-
 
 
 def evaluate_population_fitness(population, input_size, output_size):
@@ -207,7 +210,8 @@ def evaluate_population_fitness(population, input_size, output_size):
         brain.load_flat_weights(controller.controller_params)
 
         try:
-            fitness, reward = evaluate_fitness(controller.controller_params, structure, connectivity, brain)
+            fitness, reward = evaluate_fitness(
+                controller.controller_params, structure, connectivity, brain)
         except Exception as e:
             print(f"Error evaluating individual: {e}")
             fitness, reward = -15.0, 0
@@ -217,16 +221,17 @@ def evaluate_population_fitness(population, input_size, output_size):
 
 
 # ---- PAIRING STRATEGIES ----
-def pairing (population, strategy="random"):
+def pairing(population, strategy="random"):
     if strategy == "random":
         pairings = []
         shuffled = random.sample(population, len(population))
         for i in range(0, len(shuffled) - 1, 2):
             pairings.append((shuffled[i], shuffled[i+1]))
         return pairings
-    
+
     elif strategy == "best_so_far":
-        sorted_pop = sorted(population, key=lambda ind: ind.fitness, reverse=True)
+        sorted_pop = sorted(
+            population, key=lambda ind: ind.fitness, reverse=True)
         best = sorted_pop[0]
         for i in range(1, len(sorted_pop)):
             yield best, sorted_pop[i]
@@ -238,6 +243,7 @@ def pairing (population, strategy="random"):
         raise ValueError(f"Unknown pairing strategy: {strategy}")
 
 # ---- POPULATION INITIALIZATION ----
+
 
 def initialize_population(pop_size, input_size, output_size):
     population = []
@@ -255,15 +261,15 @@ def initialize_population(pop_size, input_size, output_size):
                 continue
     return population
 
+
 def generate_valid_robot():
     while True:
         # Generate a random structure (a grid of random voxel types)
         structure = np.random.choice(VOXEL_TYPES, size=GRID_SIZE)
-        
+
         # Check if the structure is connected
         if is_connected(structure):
             return structure
-
 
 
 # ---- EVOLUTIONARY ALGORITHM ----
@@ -283,7 +289,8 @@ def run_evolution():
     
     env.close()'''
 
-    population = initialize_population(POPULATION_SIZE, input_size, output_size)
+    population = initialize_population(
+        POPULATION_SIZE, input_size, output_size)
 
     best_fitness_history = []
     average_fitness_history = []
@@ -303,13 +310,15 @@ def run_evolution():
 
             # Initialize the neural controller (brain) for each individual
             connectivity = get_full_connectivity(structure)
-            env = gym.make(SCENARIO, max_episode_steps=STEPS, body=structure, connections=connectivity)
+            env = gym.make(SCENARIO, max_episode_steps=STEPS,
+                           body=structure, connections=connectivity)
             sim = env.sim
             input_size = env.observation_space.shape[0]
             output_size = env.action_space.shape[0]
 
             # Initialize the brain (neural controller) here
-            brain = NeuralController(input_size=input_size, output_size=output_size)
+            brain = NeuralController(
+                input_size=input_size, output_size=output_size)
 
             if not is_connected(structure):
                 print("Disconnected robot detected, assigning low fitness.")
@@ -318,7 +327,8 @@ def run_evolution():
 
             # Now you pass the brain object to evaluate_fitness
             try:
-                ind.fitness, ind.reward = evaluate_fitness(controller.controller_params, structure, connectivity, brain)
+                ind.fitness, ind.reward = evaluate_fitness(
+                    controller.controller_params, structure, connectivity, brain)
 
             except Exception as e:
                 print(f"Error evaluating fitness: {e}")
@@ -347,7 +357,8 @@ def run_evolution():
         population.sort(key=lambda ind: ind.fitness, reverse=True)
         next_gen = population[:ELITE_SIZE] if ELITISM else []
 
-        pairings = pairing(population, strategy="random") #change this to the desired pairing strategy
+        # change this to the desired pairing strategy
+        pairings = pairing(population, strategy="random")
         for parent1, parent2 in pairings:
             child = parent1.crossover(parent2)
             child.mutate()
@@ -370,9 +381,8 @@ def run_evolution():
         average_fitness_history,     # Average fitness history
         best_reward_history,         # Best reward history
         average_reward_history,      # Average reward history
-        best_structure,             
+        best_structure,
     )
-
 
 
 # ---- SETUP FUNCTION ----
@@ -380,6 +390,7 @@ def setup_run(seed):
     np.random.seed(seed)
     random.seed(seed)
     torch.manual_seed(seed)
+
 
 # ------ EXPERIMENTS ----------
 if __name__ == "__main__":
@@ -397,12 +408,12 @@ if __name__ == "__main__":
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
         "sigma": SIGMA,
-        #"alpha": ALPHA,
+        # "alpha": ALPHA,
         "steps": STEPS,
         "population_size": POPULATION_SIZE,
         "mutation_rate": MUTATION_RATE,
-        #"mu": MU,
-        #"lamb": LAMBDA,
+        # "mu": MU,
+        # "lamb": LAMBDA,
         "controller": NeuralController.__name__,
         "scenario": SCENARIO,
         "time": time.strftime("D%d_M%m_%H_%M"),
@@ -455,10 +466,8 @@ if __name__ == "__main__":
         structure = best_structure.structure.structure
         connectivity = get_full_connectivity(structure)
 
-        env = gym.make(SCENARIO, max_episode_steps=STEPS, body=structure, connections=connectivity)
-
-        
-
+        env = gym.make(SCENARIO, max_episode_steps=STEPS,
+                       body=structure, connections=connectivity)
 
         input_size = env.observation_space.shape[0]
         output_size = env.action_space.shape[0]
@@ -475,22 +484,17 @@ if __name__ == "__main__":
         num_params_fc2 = self.fc2.weight.numel()  # Number of weights in fc2 layer
         print(f"FC1 params: {num_params_fc1}, FC2 params: {num_params_fc2}")
 
-        
         brain.load_flat_weights(best_controller_params)
-        
 
-
-        #brain = best_structure.controller.model  # Already initialized with correct sizes
-
-        
-
+        # brain = best_structure.controller.model  # Already initialized with correct sizes
 
         end_time = time.time()
 
         print(f"Best fitness found: {best_fitness:.2f}")
 
-        #run_info["best_controller_params"] = best_controller_params.tolist()
-        run_info["best_controller_params"] = np.array(best_controller_params).tolist()
+        # run_info["best_controller_params"] = best_controller_params.tolist()
+        run_info["best_controller_params"] = np.array(
+            best_controller_params).tolist()
         run_info["best_fitness"] = best_fitness
         run_info["best_fitness_history"] = best_fitness_history
         run_info["average_fitness_history"] = average_fitness_history
@@ -501,7 +505,6 @@ if __name__ == "__main__":
 
         with open(os.path.join(run_folder, "run.json"), "w") as f:
             json.dump(run_info, f, indent=4)
-
 
         utils.create_gif_brain(
             robot_structure=best_structure.structure.structure,
