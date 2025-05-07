@@ -1,3 +1,4 @@
+from enum import Enum
 import numpy as np
 import random
 import gymnasium as gym
@@ -56,8 +57,17 @@ SCENARIOS = [
 CONTROLLER_NN_INPUT_SIZE = 14 + 2 * np.prod(GRID_SIZE)
 CONTROLLER_NN_OUTPUT_SIZE = np.prod(GRID_SIZE)  # Max possible actuators
 
-template_structure = np.random.choice(VOXEL_TYPES, size=GRID_SIZE)
+
+def generate_valid_robot():
+    while True:
+        structure = np.random.choice(VOXEL_TYPES, size=GRID_SIZE)
+        if is_connected(structure):
+            return structure
+
+
+template_structure = generate_valid_robot()
 template_connectivity = get_full_connectivity(template_structure)
+
 template_env = gym.make(
     SCENARIO,
     max_episode_steps=STEPS,
@@ -133,12 +143,6 @@ def evaluate_fitness(controller, structure, connectivity, view=False):
     except (ValueError, IndexError) as e:
         return -15.0, 0  # Penalize invalid individuals
 
-
-def generate_valid_robot():
-    while True:
-        structure = np.random.choice(VOXEL_TYPES, size=GRID_SIZE)
-        if is_connected(structure):
-            return structure
 
 # evaluate (structure, controller) pairs
 
@@ -460,7 +464,36 @@ def run_ccea_evolution():
             best_reward_so_far)
 
 
-# ---- SETUP FUNCTION ----
+class EvolutionStage(Enum):
+    STRUCTURE = "structure"
+    CONTROLLER = "controller"
+
+
+# start from best structure found in task 3.1 and evolve a controller
+initial_structure = []
+
+
+def step_coevolution(starting_stage=EvolutionStage.CONTROLLER):
+
+    step_interval = int(NUM_GENERATIONS * 0.1)
+    current_stage = starting_stage
+    for generation in range(NUM_GENERATIONS):
+
+        # switch the stage
+        if generation % step_interval == 0:
+            if current_stage == EvolutionStage.STRUCTURE:
+                current_stage = EvolutionStage.CONTROLLER
+            else:
+                current_stage = EvolutionStage.STRUCTURE
+
+        if current_stage == EvolutionStage.CONTROLLER:
+            # evolve controller
+            pass
+        else:
+            # evolve structure
+            pass
+
+
 def setup_run(seed):
     np.random.seed(seed)
     random.seed(seed)
