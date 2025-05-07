@@ -10,5 +10,5 @@
     "mutation_rate_controller": 0.15,
     "controller": "NeuralController",
     "scenario": "GapJumper-v0",
-    "time": "D07_M05_10_02"
+    "time": "D07_M05_15_25"
 }

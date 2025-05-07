@@ -39,7 +39,7 @@ def uniform_crossover(parent1, parent2):
     return offspring
 
 
-def binomial_crossover(vector1, vector2, cr):
+def binomial_crossover(vector1, vector2, cr=0.5):
     # Create a mask of the same shape as the input vectors
     mask = np.random.rand(*vector1.shape) <= cr
 

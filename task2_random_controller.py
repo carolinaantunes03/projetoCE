@@ -239,58 +239,6 @@ def random_search_algorithm():
     )
 
 
-# ---- (1+1) EVOLUTION STRATEGY ----
-def one_plus_one_es():
-    param_vector = get_flat_params(brain)
-    best_params = param_vector.copy()
-
-    best_fitness, best_reward = evaluate_fitness(
-        utils.get_param_as_weights(best_params, model=brain))
-    best_fitness_history = [best_fitness]
-    average_fitness_history = [best_fitness]
-    best_reward_history = [best_reward]
-    average_reward_history = [best_reward]
-
-    print(f"Initial fitness: {best_fitness:.2f}")
-
-    for generation in range(NUM_GENERATIONS):
-        offspring_params = best_params.copy()
-        # Mutation to create offspring
-        # Apply mutation to each parameter with probability ALPHA
-        # SIGMA is the mutation step size (the standard deviation of the Gaussian noise)
-        for i in range(len(offspring_params)):
-            if np.random.rand() < ALPHA:
-                offspring_params[i] += SIGMA * np.random.randn()
-
-        offspring_fitness, offspring_reward = evaluate_fitness(
-            utils.get_param_as_weights(offspring_params, model=brain))
-
-        if offspring_fitness > best_fitness:
-            best_fitness = offspring_fitness
-            best_params = offspring_params.copy()
-            best_reward = offspring_reward
-            print(f"Gen {generation+1}: New best fitness = {best_fitness:.2f}")
-        else:
-            print(
-                f"Gen {generation+1}: No improvement (best={best_fitness:.2f})")
-
-        best_fitness_history.append(best_fitness)
-        average_fitness_history.append(best_fitness)
-        best_reward_history.append(best_reward)
-        average_reward_history.append(best_reward)
-
-    utils.set_weights(brain, utils.get_param_as_weights(
-        best_params, model=brain))
-
-    return (
-        best_params,
-        best_fitness,
-        best_fitness_history,
-        average_fitness_history,
-        best_reward_history,
-        average_reward_history,
-    )
-
 # ---- (μ + λ) EVOLUTION STRATEGY ----
 
 

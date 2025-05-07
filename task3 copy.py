@@ -40,7 +40,7 @@ ELITISM_STRUCTURES = True
 ELITE_SIZE_STRUCTURES = 1
 
 
-MULTIPROCESSING = False
+MULTIPROCESSING = True
 
 # ---- TESTING SETTINGS ----
 SCENARIO = "GapJumper-v0"
@@ -75,7 +75,7 @@ def evaluate_fitness(controller, structure, connectivity, view=False):
         return -15.0, 0
 
     try:
-        connectivity = get_full_connectivity(structure)
+        connectivity = get_full_connectivity(np.array(structure))
         env = gym.make(
             SCENARIO,
             max_episode_steps=STEPS,
@@ -86,7 +86,7 @@ def evaluate_fitness(controller, structure, connectivity, view=False):
         output_size = env.action_space.shape[0]
         brain = NeuralController(input_size, output_size)
         utils.set_weights(brain, utils.get_param_as_weights(
-            controller, model=brain))
+            np.array(controller), model=brain))
         sim = env.sim
         viewer = EvoViewer(sim)
         viewer.track_objects("robot")
@@ -143,19 +143,109 @@ def generate_valid_robot():
 # evaluate (structure, controller) pairs
 
 
-def evaluate_pairs(pairs: tuple):
-    fitness_vals, reward_vals = [], []
+def evaluate_single_pair(pair: tuple) -> tuple:
+    structure, controller = pair
+    structure = np.array(structure).reshape(GRID_SIZE)
+    if not is_connected(structure):
+        return -15.0, 0
 
-    for structure, controller in pairs:
-        fitness, reward = evaluate_fitness(
-            controller=controller,
-            structure=structure,
-            connectivity=get_full_connectivity(structure),
-        )
-        fitness_vals.append(fitness)
-        reward_vals.append(reward)
+    if isinstance(structure, list) and len(structure) == 1:
+        structure = structure[0]
 
-    return fitness_vals, reward_vals
+    fitness, reward = evaluate_fitness(
+        controller=controller,
+        structure=structure,
+        connectivity=get_full_connectivity(np.array(structure)),
+    )
+
+    return fitness, reward
+
+
+def evaluate_pairs(pairs: tuple) -> tuple:
+    fitness_scores = []
+    rewards = []
+
+    if not MULTIPROCESSING:
+        # Sequential execution if multiprocessing is not enabled
+        for pair in pairs:
+            fitness_score, reward = evaluate_single_pair(pair)
+            fitness_scores.append(fitness_score)
+            rewards.append(reward)
+        return fitness_scores, rewards
+
+    num_processes = min(len(pairs), os.cpu_count())
+
+    if num_processes > 1:  # Only use multiprocessing if beneficial
+        try:
+            # Ensure the main script execution is guarded by if __name__ == "__main__":
+            # This is crucial for multiprocessing on Windows.
+            with multiprocessing.Pool(processes=8) as pool:
+                results = pool.map(evaluate_single_pair, pairs)
+
+            for fitness_score, reward in results:
+                fitness_scores.append(fitness_score)
+                rewards.append(reward)
+        except Exception as e:
+            print(
+                f"Multiprocessing failed: {e}. Falling back to sequential execution.")
+            # Fallback to sequential execution if multiprocessing fails
+            for pair in pairs:
+                fitness_score, reward = evaluate_single_pair(pair)
+                fitness_scores.append(fitness_score)
+                rewards.append(reward)
+    else:
+        # Execute sequentially if only one process is needed or available
+        for pair in pairs:
+            fitness_score, reward = evaluate_single_pair(pair)
+            fitness_scores.append(fitness_score)
+            rewards.append(reward)
+
+    return fitness_scores, rewards
+
+
+def evaluate_population_fitness(population) -> tuple:
+    """Evaluate the fitness of a population of robots."""
+    fitness_scores = []
+    rewards = []
+
+    if not MULTIPROCESSING:
+        # Sequential execution if multiprocessing is not enabled
+        for robot in population:
+            fitness_score, reward = evaluate_fitness(robot)
+            fitness_scores.append(fitness_score)
+            rewards.append(reward)
+        return fitness_scores, rewards
+
+    # Use more than one process, e.g., the number of available CPU cores
+    # Be mindful of resource limits and potential overhead
+    # Use number of robots or CPU cores, whichever is smaller
+    num_processes = min(len(population), os.cpu_count())
+    if num_processes > 1:  # Only use multiprocessing if beneficial
+        try:
+            # Ensure the main script execution is guarded by if __name__ == "__main__":
+            # This is crucial for multiprocessing on Windows.
+            with multiprocessing.Pool(processes=8) as pool:
+                results = pool.map(evaluate_fitness, population)
+
+            for fitness_score, reward in results:
+                fitness_scores.append(fitness_score)
+                rewards.append(reward)
+        except Exception as e:
+            print(
+                f"Multiprocessing failed: {e}. Falling back to sequential execution.")
+            # Fallback to sequential execution if multiprocessing fails
+            for robot in population:
+                fitness_score, reward = evaluate_fitness(robot)
+                fitness_scores.append(fitness_score)
+                rewards.append(reward)
+    else:
+        # Execute sequentially if only one process is needed or available
+        for robot in population:
+            fitness_score, reward = evaluate_fitness(robot)
+            fitness_scores.append(fitness_score)
+            rewards.append(reward)
+
+    return fitness_scores, rewards
 
 
 # ---- PAIRING STRATEGIES ----
@@ -195,9 +285,8 @@ def get_interactions(pop1, pop2, type="random"):
     return interactions
 
 
-def run_ccea_evolution(interaction_type="random"):
+def run_ccea_evolution():
     # ---- POPULATION INITIALIZATION ----
-
     structure_population = [generate_valid_robot()
                             for _ in range(STRUCTURE_POP_SIZE)]
 
@@ -207,24 +296,29 @@ def run_ccea_evolution(interaction_type="random"):
             sum(p.numel() for p in brain.parameters()))
         controller_population.append(param_vector)
 
-    # pick random representatives
+    # pick single representatives (not lists)
+    repr_structures = random.choice(structure_population)
+    repr_controllers = random.choice(controller_population)
 
-    repr_structures = random.sample(
-        structure_population, 1)
-
-    repr_controllers = random.sample(
-        controller_population, 1)
-
-    best_overall_fitness_so_far = -float('inf')
+    # Tracking variables
+    best_joint_fitness_so_far = -float('inf')
     best_robot_structure_ever = None
     best_robot_controller_params_ever = None
-    best_overall_fitness_history = []
+
+    best_joint_fitness_history = []
+    best_structure_fitness_history = []
+    best_controller_fitness_history = []
     avg_structure_fitness_history = []
     avg_controller_fitness_history = []
+    best_reward_history = []
+    average_reward_history = []
+    best_reward_so_far = -float('inf')
 
     for generation in range(NUM_GENERATIONS):
+        structure_best_fitness = -float('inf')
+        controller_best_fitness = -float('inf')
 
-        # create new populations for each subproblem
+        # Create new populations for each subproblem
         for component in range(2):
             if component == 0:  # structure evolution
                 parents = structure_population
@@ -235,7 +329,6 @@ def run_ccea_evolution(interaction_type="random"):
                 population_size = STRUCTURE_POP_SIZE
                 elite_size = ELITE_SIZE_STRUCTURES
                 do_elitism = ELITISM_STRUCTURES
-
             else:  # controller evolution
                 parents = controller_population
                 other_repr = repr_structures
@@ -245,18 +338,126 @@ def run_ccea_evolution(interaction_type="random"):
                 population_size = CONTROLLER_POP_SIZE
                 elite_size = ELITE_SIZE_CONTROLLERS
                 do_elitism = ELITISM_CONTROLLERS
-                
-            
 
-            # selection
-            selected_parents = tournament_selection(
-                parents, )
+            # Make pairings for evaluation
+            pairs = []
+            if component == 0:
+                pairs = [(parent, other_repr) for parent in parents]
+            else:
+                pairs = [(other_repr, parent) for parent in parents]
+
+            fitness_vals, reward_vals = evaluate_pairs(pairs)
+
+            # Track statistics
+            avg_fitness = np.mean(fitness_vals)
+            avg_reward = np.mean(reward_vals)
+            best_idx = np.argmax(fitness_vals)
+            best_fitness = fitness_vals[best_idx]
+            best_reward = reward_vals[best_idx]
+
+            if component == 0:  # structure stats
+                avg_structure_fitness_history.append(avg_fitness)
+                best_structure_fitness_history.append(best_fitness)
+                structure_best_fitness = best_fitness
+                structure_rewards = reward_vals
+                best_structure = parents[best_idx]
+            else:  # controller stats
+                avg_controller_fitness_history.append(avg_fitness)
+                best_controller_fitness_history.append(best_fitness)
+                controller_best_fitness = best_fitness
+                controller_rewards = reward_vals
+                best_controller = parents[best_idx]
+
+            # Create new population
+            new_population = []
+
+            # Apply elitism if enabled
+            if do_elitism:
+                elite_indices = np.argsort(fitness_vals)[-elite_size:]
+                elite_individuals = [parents[i] for i in elite_indices]
+                new_population.extend(elite_individuals)
+
+            # Fill rest of population via selection, crossover, mutation
+            while len(new_population) < population_size:
+                # Select two parents via tournament
+                parent1 = tournament_selection(
+                    parents, fitness_vals, TOURNAMENT_SIZE)
+                parent2 = tournament_selection(
+                    parents, fitness_vals, TOURNAMENT_SIZE)
+
+                # Apply crossover
+                offspring = crossover_fn(parent1, parent2)
+
+                # Apply mutation (fix parameter name)
+                offspring = mutation_fn(offspring, mutation_rate)
+
+                if component == 0:  # ensure structure is valid
+                    # until connected
+                    tries = 0
+                    while not is_connected(offspring):
+                        offspring = mutation_fn(offspring, mutation_rate)
+                        tries += 1
+                        if tries > 10:
+                            # fallback to a new random valid robot
+                            offspring = generate_valid_robot()
+                            break
+
+                new_population.append(offspring)
+
+            # Replace old population
+            if component == 0:
+                structure_population = new_population
+                # Update representative with best individual
+                repr_structures = best_structure
+            else:
+                controller_population = new_population
+                # Update representative with best individual
+                repr_controllers = best_controller
+
+        # After both components evolve, evaluate joint fitness
+        joint_pairs = [(repr_structures, repr_controllers)]
+        joint_fitness_vals, joint_reward_vals = evaluate_pairs(joint_pairs)
+        joint_fitness = joint_fitness_vals[0]
+        joint_reward = joint_reward_vals[0]
+
+        # Track joint fitness
+        best_joint_fitness_history.append(joint_fitness)
+
+        average_reward_history.append(np.mean(joint_reward_vals))
+
+        # Track best reward so far
+        if joint_reward > best_reward_so_far:
+            best_reward_so_far = joint_reward
+
+        # Update overall best solution if better
+        if joint_fitness > best_joint_fitness_so_far:
+            best_joint_fitness_so_far = joint_fitness
+            best_robot_structure_ever = repr_structures
+            best_robot_controller_params_ever = repr_controllers
+
+        # Print generation stats
+        print(f"Gen {generation+1}/{NUM_GENERATIONS} | "
+              f"Best Joint={joint_fitness:.4f} | "
+              f"Best Struct={structure_best_fitness:.4f} | "
+              f"Best Ctrl={controller_best_fitness:.4f} | "
+              f"AvgStruct={avg_structure_fitness_history[-1]:.4f} | "
+              f"AvgCtrl={avg_controller_fitness_history[-1]:.4f} | "
+              f"Best Reward={joint_reward:.4f} | "
+              f"Avg Reward={average_reward_history[-1]:.4f} | "
+              f"Best Reward So Far={best_reward_so_far:.4f}")
 
     print(
-        f"\nEvolution Finished. Best Overall Fitness: {best_overall_fitness_so_far:.2f}")
-    return (best_robot_structure_ever, best_robot_controller_params_ever,
-            best_overall_fitness_so_far, best_overall_fitness_history,
-            avg_structure_fitness_history, avg_controller_fitness_history)
+        f"\nEvolution Finished. Best Overall Fitness: {best_joint_fitness_so_far:.2f}")
+
+    return (best_robot_structure_ever,
+            best_robot_controller_params_ever,
+            best_joint_fitness_so_far,
+            best_joint_fitness_history,
+            avg_structure_fitness_history,
+            avg_controller_fitness_history,
+            best_reward_history,
+            average_reward_history,
+            best_reward_so_far)
 
 
 # ---- SETUP FUNCTION ----
@@ -325,40 +526,45 @@ if __name__ == "__main__":
 
         start_time = time.time()
 
-        (
-            best_structure,
-            best_controller_params,
-            best_fitness,
-            best_fitness_history,
-            average_fitness_history,
-            average_reward_history,
+        (best_robot_structure_ever,
+            best_robot_controller_params_ever,
+            best_joint_fitness_so_far,
+            best_joint_fitness_history,
+            avg_structure_fitness_history,
+            avg_controller_fitness_history,
             best_reward_history,
-        ) = run_ccea_evolution()
+            average_reward_history,
+            best_reward_so_far
+         ) = run_ccea_evolution()
 
         # Recreate env from best structure to ensure consistent input/output sizes
-        connectivity = get_full_connectivity(best_structure)
+        connectivity = get_full_connectivity(best_robot_structure_ever)
 
         env = gym.make(SCENARIO, max_episode_steps=STEPS,
-                       body=best_structure, connections=connectivity)
+                       body=best_robot_structure_ever, connections=connectivity)
 
         input_size = env.observation_space.shape[0]
         output_size = env.action_space.shape[0]
 
         brain = NeuralController(input_size, output_size)
-        utils.set_weights(brain, best_controller_params)
+        utils.set_weights(brain, best_robot_controller_params_ever)
 
         end_time = time.time()
 
-        print(f"Best fitness found: {best_fitness:.2f}")
+        print(f"Best fitness found: {best_joint_fitness_so_far:.2f}")
 
-        # run_info["best_controller_params"] = best_controller_params.tolist()
-        run_info["best_controller_params"] = np.array(
-            best_controller_params).tolist()
-        run_info["best_fitness"] = best_fitness
-        run_info["best_fitness_history"] = best_fitness_history
-        run_info["average_fitness_history"] = average_fitness_history
+        run_info["best_controller_params"] = best_robot_controller_params_ever.tolist()
+        run_info["best_fitness"] = best_joint_fitness_so_far
+        run_info["best_fitness_history"] = best_joint_fitness_history
+        # run_info["average_fitness_history"] =
         run_info["best_reward_history"] = best_reward_history
         run_info["average_reward_history"] = average_reward_history
+        run_info["best_structure"] = best_robot_structure_ever.tolist()
+        run_info["best_structure_fitness_history"] = avg_structure_fitness_history
+
+        run_info["best_controller_fitness_history"] = avg_controller_fitness_history
+        run_info["best_reward_so_far"] = best_reward_so_far
+
         run_info["execution_time"] = end_time - start_time
         run_info["seed"] = SEED
 
@@ -366,7 +572,7 @@ if __name__ == "__main__":
             json.dump(run_info, f, indent=4)
 
         utils.create_gif_brain(
-            robot_structure=best_structure.structure.structure,
+            robot_structure=best_robot_structure_ever,
             brain=brain,
             filename=os.path.join(run_folder, "best_robot.gif"),
             scenario=SCENARIO,
