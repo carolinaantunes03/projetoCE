@@ -18,7 +18,7 @@ from copy import deepcopy
 
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 5
+NUM_GENERATIONS = 20
 STRUCTURE_POP_SIZE = 10
 CONTROLLER_POP_SIZE = 10
 STEPS = 500
@@ -34,7 +34,7 @@ CONTROLLER_MUTATION_RATE = 0.15
 SIGMA = 0.1
 
 # ---- SELECTION PARAMETERS ----
-TOURNAMENT_SIZE = 4
+TOURNAMENT_SIZE = 3
 ELITISM_CONTROLLERS = True
 ELITE_SIZE_CONTROLLERS = 1
 ELITISM_STRUCTURES = True
@@ -470,28 +470,226 @@ class EvolutionStage(Enum):
 
 
 # start from best structure found in task 3.1 and evolve a controller
-initial_structure = []
+best_structure_task_1 = [[2, 4, 2, 0, 0],
+                         [0, 4, 1, 2, 2],
+                         [4, 4, 0, 1, 3],
+                         [2, 4, 3, 3, 1],
+                         [3, 3, 0, 0, 3]]
 
 
-def step_coevolution(starting_stage=EvolutionStage.CONTROLLER):
+def get_brain_for_structure(structure):
+    connectivity = get_full_connectivity(structure)
+    env = gym.make(SCENARIO, max_episode_steps=STEPS,
+                   body=structure, connections=connectivity)
 
-    step_interval = int(NUM_GENERATIONS * 0.1)
-    current_stage = starting_stage
-    for generation in range(NUM_GENERATIONS):
+    input_size = env.observation_space.shape[0]
+    output_size = env.action_space.shape[0]
 
-        # switch the stage
-        if generation % step_interval == 0:
-            if current_stage == EvolutionStage.STRUCTURE:
-                current_stage = EvolutionStage.CONTROLLER
+    brain = NeuralController(input_size, output_size)
+
+    return brain
+
+
+def robot_structure_to_key(structure: np.ndarray) -> str:
+    """Flatten structure to a string key for the controller archive."""
+    return ''.join(map(str, structure.flatten().tolist()))
+
+
+def _hill_climber_controller_learning_loop(structure, init_params, learn_steps=20, evaluate_fn=None):
+    """
+    Inner-loop: a simple hill-climbing on controller params for this body.
+    evaluate_fn: function(body, params) -> fitness
+    """
+    best_params = init_params.copy()
+    best_fit = evaluate_fn(structure, best_params)
+    for _ in range(1, learn_steps):
+        candidate = best_params + np.random.randn(*best_params.shape) * 0.1
+        fit = evaluate_fn(structure, candidate)
+        if fit > best_fit:
+            best_fit, best_params = fit, candidate.copy()
+    return best_params, best_fit
+
+
+def _genetic_algorithm_controller_learning_loop(structure, init_params, generations=20, evaluate_pop_fn=None):
+    """
+    Inner-loop: a simple genetic algorithm on controller params for this body.
+    evaluate_fn: function(body, params) -> fitness
+    """
+    # init population from init_params and random, half-half
+    population = [init_params.copy()]
+
+    while len(population) < CONTROLLER_POP_SIZE:
+        population.append(np.random.randn(len(init_params)))
+
+    best_params = None
+    best_fit = -np.inf
+    for _ in range(generations):
+        new_population = []
+
+        # Evaluate population
+        fitness_scores = evaluate_pop_fn(structure, population)
+
+        # Elitism: keep the best individuals
+        if ELITISM_CONTROLLERS:
+            elite_indices = np.argsort(
+                fitness_scores)[-ELITE_SIZE_CONTROLLERS:]
+            elite_individuals = [population[i] for i in elite_indices]
+            new_population.extend(elite_individuals)
+
+        # Crossover and mutation to create new population
+        while len(new_population) < CONTROLLER_POP_SIZE:
+            parent1 = tournament_selection(
+                population, fitness_scores, TOURNAMENT_SIZE)
+            parent2 = tournament_selection(
+                population, fitness_scores, TOURNAMENT_SIZE)
+
+            offspring = binomial_crossover(parent1, parent2)
+
+            offspring = gaussian_dist_mutation(
+                offspring, CONTROLLER_MUTATION_RATE)
+
+            new_population.append(offspring)
+
+        # Replace old population with new one
+        population = new_population
+
+        # Track best params and fitness
+        best_idx = np.argmax(fitness_scores)
+        best_gen_fit = fitness_scores[best_idx]
+        best_gen_params = population[best_idx]
+
+        if best_gen_fit > best_fit:
+            best_fit = best_gen_fit
+            best_params = best_gen_params.copy()
+
+        print(
+            f"(Ctrl. Evo. Inner-Loop) Gen {_+1}/{generations} |  Best Fit: {best_fit:.4f} | Avg Fit: {np.mean(fitness_scores):.4f}")
+
+    return best_params, best_fit
+
+
+def step_coevolution(
+        num_generations=NUM_GENERATIONS,
+        controller_inner_loop_generations=20,
+        structure_protection_window=3):
+    # Archive: robot_structure_to_key -> (best_ctrl_params, best_fitness)
+    #  avoids re-learning a controller from scratch every time a known structure reappears.
+    controller_archive = {}
+
+    structure_population = [generate_valid_robot()
+                            for _ in range(STRUCTURE_POP_SIZE)]
+
+    # Track age for innovation protection
+    # track the "age" of each structure (how many generations it has been around and evaluated). This is used for "innovation protection."
+    ages = {robot_structure_to_key(s): 0 for s in structure_population}
+
+    eval_count = 0
+
+    # Initialize all-time best tracking variables
+    all_time_best_fit = -float('inf')
+    all_time_best_struct = None
+    all_time_best_params = None
+
+    # Initialize history tracking lists
+    best_fitness_history = []
+    average_fitness_history = []
+    best_structs_history = []
+
+    for generation in range(num_generations):
+        new_structs = []
+        gen_fitness_values = []
+
+        for struct in structure_population:
+            # Mutate structure
+            offspring = flip_mutation(struct.copy(), STRUCT_MUTATION_RATE)
+
+            if not is_connected(offspring):
+                offspring = generate_valid_robot()
+
+            key = robot_structure_to_key(offspring)
+
+            # init brain for specific structure
+            struct_brain = get_brain_for_structure(offspring)
+
+            # Initialize or lookup controller
+            param_size = sum(p.numel() for p in struct_brain.parameters())
+
+            # check if offspring is in archive
+            if key in controller_archive:
+                # if yes, best-found controller parameters for this structure to use as a starting point
+                ctrl_init, _ = controller_archive[key]
             else:
-                current_stage = EvolutionStage.STRUCTURE
+                # else, random initialization
+                ctrl_init = np.random.randn(param_size)
 
-        if current_stage == EvolutionStage.CONTROLLER:
-            # evolve controller
-            pass
-        else:
-            # evolve structure
-            pass
+            # Inner-loop learning + evaluate
+            def eval_fn(body, params):
+                nonlocal eval_count
+                fit, _ = evaluate_fitness(
+                    params, body, get_full_connectivity(body))
+                eval_count += 1
+                return fit
+
+            def eval_pop_fn(structure, population):
+                nonlocal eval_count
+                pairs = [(structure, p) for p in population]
+                fitness_scores, _ = evaluate_pairs(pairs)
+                eval_count += len(pairs)
+                return fitness_scores
+
+            # -------- Inner-loop Controller Optimization --------
+            # trained_params, fit = _hill_climber_controller_learning_loop(offspring, ctrl_init,
+            #                                                             learn_steps=controller_inner_loop_generations,
+            #                                                             evaluate_fn=eval_fn)
+
+            trained_params, fit = _genetic_algorithm_controller_learning_loop(
+                offspring, ctrl_init,
+                generations=controller_inner_loop_generations,
+                evaluate_pop_fn=eval_pop_fn)
+
+            # ----------------------------------------------------
+            # Innovation protection - protect newer structures which have not evolved good controllers yet
+            if ages.get(key, 0) < structure_protection_window:
+                fit = max(fit, -1.0)
+                ages[key] = ages.get(key, 0) + 1
+
+            # Update archive
+            prev_fit = controller_archive.get(key, (None, -np.inf))[1]
+            if fit > prev_fit:
+                controller_archive[key] = (trained_params.copy(), fit)
+
+            # Track all-time best structure-controller combination
+            if fit > all_time_best_fit:
+                all_time_best_fit = fit
+                all_time_best_struct = offspring.copy()
+                all_time_best_params = trained_params.copy()
+                print(
+                    f"New all-time best: Fitness = {all_time_best_fit:.4f} (Gen {generation})")
+
+            new_structs.append((offspring, fit))
+            gen_fitness_values.append(fit)
+
+        # Track history for this generation
+        current_gen_best_idx = np.argmax([f for _, f in new_structs])
+        best_fitness_history.append(new_structs[current_gen_best_idx][1])
+        average_fitness_history.append(np.mean(gen_fitness_values))
+        best_structs_history.append(
+            new_structs[current_gen_best_idx][0].copy())
+
+        # Select elites and fill structure pop
+        new_structs.sort(key=lambda x: x[1], reverse=True)
+        structure_population = [
+            s for s, _ in new_structs[:ELITE_SIZE_STRUCTURES]]
+        while len(structure_population) < STRUCTURE_POP_SIZE:
+            structure_population.append(
+                deepcopy(random.choice(new_structs)[0]))
+
+        print(
+            f"Gen. {generation} | #Evals: {eval_count} | Best fit = {new_structs[0][1]:.3f} | Avg fit = {np.mean([s[1] for s in new_structs]):.3f} | All-time best = {all_time_best_fit:.3f}"
+        )
+
+    # Return the all-time best instead of just the final best
+    return all_time_best_struct, all_time_best_params, all_time_best_fit, best_fitness_history, average_fitness_history, best_structs_history
 
 
 def setup_run(seed):
@@ -511,7 +709,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(0)TESTE",
+        "name": "(1)StepCoEvBestStructT1",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -559,45 +757,38 @@ if __name__ == "__main__":
 
         start_time = time.time()
 
-        (best_robot_structure_ever,
-            best_robot_controller_params_ever,
-            best_joint_fitness_so_far,
-            best_joint_fitness_history,
-            avg_structure_fitness_history,
-            avg_controller_fitness_history,
-            best_reward_history,
-            average_reward_history,
-            best_reward_so_far
-         ) = run_ccea_evolution()
+        (all_time_best_struct,
+         all_time_best_params,
+         all_time_best_fit,
+         best_fitness_history,
+         average_fitness_history,
+         best_structs_history
+         ) = step_coevolution(num_generations=1, controller_inner_loop_generations=20)
 
         # Recreate env from best structure to ensure consistent input/output sizes
-        connectivity = get_full_connectivity(best_robot_structure_ever)
+        connectivity = get_full_connectivity(all_time_best_struct)
 
         env = gym.make(SCENARIO, max_episode_steps=STEPS,
-                       body=best_robot_structure_ever, connections=connectivity)
+                       body=all_time_best_struct, connections=connectivity)
 
         input_size = env.observation_space.shape[0]
         output_size = env.action_space.shape[0]
 
         brain = NeuralController(input_size, output_size)
-        utils.set_weights(brain, best_robot_controller_params_ever)
+        # Convert flat parameter vector to properly shaped weights
+        weights = utils.get_param_as_weights(
+            np.array(all_time_best_params), model=brain)
+        utils.set_weights(brain, weights)
 
         end_time = time.time()
 
-        print(f"Best fitness found: {best_joint_fitness_so_far:.2f}")
+        print(f"Best fitness found: {all_time_best_fit:.2f}")
 
-        run_info["best_controller_params"] = best_robot_controller_params_ever.tolist()
-        run_info["best_fitness"] = best_joint_fitness_so_far
-        run_info["best_fitness_history"] = best_joint_fitness_history
-        # run_info["average_fitness_history"] =
-        run_info["best_reward_history"] = best_reward_history
-        run_info["average_reward_history"] = average_reward_history
-        run_info["best_structure"] = best_robot_structure_ever.tolist()
-        run_info["best_structure_fitness_history"] = avg_structure_fitness_history
-
-        run_info["best_controller_fitness_history"] = avg_controller_fitness_history
-        run_info["best_reward_so_far"] = best_reward_so_far
-
+        run_info["best_controller_params"] = all_time_best_params.tolist()
+        run_info["best_fitness"] = all_time_best_fit
+        run_info["best_structure"] = all_time_best_struct.tolist()
+        run_info["best_fitness_history"] = best_fitness_history
+        run_info["average_fitness_history"] = average_fitness_history
         run_info["execution_time"] = end_time - start_time
         run_info["seed"] = SEED
 
@@ -605,7 +796,7 @@ if __name__ == "__main__":
             json.dump(run_info, f, indent=4)
 
         utils.create_gif_brain(
-            robot_structure=best_robot_structure_ever,
+            robot_structure=all_time_best_struct,
             brain=brain,
             filename=os.path.join(run_folder, "best_robot.gif"),
             scenario=SCENARIO,

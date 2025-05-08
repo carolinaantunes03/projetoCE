@@ -1,7 +1,7 @@
 {
-    "name": "(0)TESTE",
+    "name": "(1)StepCoEvBestStructT1",
     "repetitions": 5,
-    "num_generations": 5,
+    "num_generations": 20,
     "sigma": 0.1,
     "steps": 500,
     "population_size_structures": 10,
@@ -10,5 +10,5 @@
     "mutation_rate_controller": 0.15,
     "controller": "NeuralController",
     "scenario": "GapJumper-v0",
-    "time": "D07_M05_15_25"
+    "time": "D08_M05_23_39"
 }
