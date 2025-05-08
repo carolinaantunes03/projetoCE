@@ -16,7 +16,7 @@ import utils
 
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 250  # Number of generations to evolve
+NUM_GENERATIONS = 250 # Number of generations to evolve
 POPULATION_SIZE = 20  # Number of robots per generation
 STEPS = 500
 
@@ -29,7 +29,7 @@ MU = 5  # Number of parents
 LAMBDA = 20  # Number of offspring
 
 # Mutation Params
-MUTATION_RATE = 0.15  # Probability of mutation
+MUTATION_RATE = 0.10  # Probability of mutation
 
 # Selection Params
 TOURNAMENT_SIZE = 4  # Number of individuals in the tournament for selection
@@ -37,7 +37,7 @@ ELITISM = True  # Whether to use elitism or not
 ELITE_SIZE = 1  # Number of elite individuals to carry over to the next generation
 
 # -- For Robot Eval ---
-MULTIPROCESSING = True  # Whether to use multiprocessing or not
+MULTIPROCESSING = False  # Whether to use multiprocessing or not
 
 # ---- Fixed Robot Structure ----
 robot_structure = np.array([
@@ -48,8 +48,10 @@ robot_structure = np.array([
     [0, 0, 0, 0, 2]
 ])
 
+
+
 # ---- TESTING SETTINGS ----
-SCENARIO = "DownStepper-v0"
+SCENARIO = "ObstacleTraverser-v0"
 
 SCENARIOS = [
     "DownStepper-v0",
@@ -163,7 +165,7 @@ def evaluate_fitness(weights, view=False):
         avg_velocity_y = t_velocity_y / t
 
         time_penalty_factor = 0.05
-        fitness_val = t_reward / (1 + time_penalty_factor * total_time)
+        fitness_val = t_reward 
 
         return fitness_val, t_reward
 
@@ -709,7 +711,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(OPT)(2.1)DeRand1Bin32Neurons",
+        "name": "(OPT)(Task1)BestGATask1_10MR",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -767,7 +769,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = differential_evolution()
+        ) = evolutionary_algorithm ()
         # ***********************************************************************************
 
         end_time = time.time()
