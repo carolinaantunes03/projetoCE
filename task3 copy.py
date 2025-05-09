@@ -709,7 +709,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(1)StepCoEvBestStructT1",
+        "name": "(1)StepCoEvInnerGA",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -763,7 +763,7 @@ if __name__ == "__main__":
          best_fitness_history,
          average_fitness_history,
          best_structs_history
-         ) = step_coevolution(num_generations=1, controller_inner_loop_generations=20)
+         ) = step_coevolution(num_generations=20, controller_inner_loop_generations=20)
 
         # Recreate env from best structure to ensure consistent input/output sizes
         connectivity = get_full_connectivity(all_time_best_struct)
