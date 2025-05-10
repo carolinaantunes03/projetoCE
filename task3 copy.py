@@ -816,7 +816,8 @@ if __name__ == "__main__":
          average_fitness_history,
          ) = random_search_coevolution(
              num_generations=20,
-             structure_pop_size=2000
+             structure_pop_size=20,
+             controller_pop_size=100,
         )
 
         # Recreate env from best structure to ensure consistent input/output sizes
