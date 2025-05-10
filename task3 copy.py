@@ -638,14 +638,14 @@ def step_coevolution(
                 return fitness_scores
 
             # -------- Inner-loop Controller Optimization --------
-            # trained_params, fit = _hill_climber_controller_learning_loop(offspring, ctrl_init,
-            #                                                             learn_steps=controller_inner_loop_generations,
-            #                                                             evaluate_fn=eval_fn)
+            trained_params, fit = _hill_climber_controller_learning_loop(offspring, ctrl_init,
+                                                                         learn_steps=controller_inner_loop_generations,
+                                                                         evaluate_fn=eval_fn)
 
-            trained_params, fit = _genetic_algorithm_controller_learning_loop(
-                offspring, ctrl_init,
-                generations=controller_inner_loop_generations,
-                evaluate_pop_fn=eval_pop_fn)
+            #trained_params, fit = _genetic_algorithm_controller_learning_loop(
+            #    offspring, ctrl_init,
+            #    generations=controller_inner_loop_generations,
+            #    evaluate_pop_fn=eval_pop_fn)
 
             # ----------------------------------------------------
             # Innovation protection - protect newer structures which have not evolved good controllers yet
