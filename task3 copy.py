@@ -19,7 +19,7 @@ from copy import deepcopy
 
 # ---- PARAMETERS ----
 NUM_GENERATIONS = 20
-STRUCTURE_POP_SIZE = 10
+STRUCTURE_POP_SIZE = 20
 CONTROLLER_POP_SIZE = 10
 STEPS = 500
 
@@ -36,15 +36,15 @@ SIGMA = 0.1
 # ---- SELECTION PARAMETERS ----
 TOURNAMENT_SIZE = 3
 ELITISM_CONTROLLERS = True
-ELITE_SIZE_CONTROLLERS = 1
+ELITE_SIZE_CONTROLLERS = 2
 ELITISM_STRUCTURES = True
-ELITE_SIZE_STRUCTURES = 1
+ELITE_SIZE_STRUCTURES = 2
 
 
 MULTIPROCESSING = True
 
 # ---- TESTING SETTINGS ----
-SCENARIO = "GapJumper-v0"
+SCENARIO = "CaveCrawler-v0"
 
 SCENARIOS = [
     "GapJumper-v0",
@@ -638,9 +638,9 @@ def step_coevolution(
                 return fitness_scores
 
             # -------- Inner-loop Controller Optimization --------
-            trained_params, fit = _hill_climber_controller_learning_loop(offspring, ctrl_init,
-                                                                         learn_steps=controller_inner_loop_generations,
-                                                                         evaluate_fn=eval_fn)
+            #trained_params, fit = _hill_climber_controller_learning_loop(offspring, ctrl_init,
+            #                                                             learn_steps=controller_inner_loop_generations,
+            #                                                             evaluate_fn=eval_fn)
 
             #trained_params, fit = _genetic_algorithm_controller_learning_loop(
             #    offspring, ctrl_init,
@@ -760,7 +760,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(0)CoEvRandomSearch",
+        "name": "(0)CoEvGABiggerElitismImproveBestStructures",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -814,10 +814,10 @@ if __name__ == "__main__":
          all_time_best_fit,
          best_fitness_history,
          average_fitness_history,
-         ) = random_search_coevolution(
+         ) = step_coevolution(
              num_generations=20,
-             structure_pop_size=20,
-             controller_pop_size=100,
+             controller_inner_loop_generations=10,
+             structure_protection_window=5,
         )
 
         # Recreate env from best structure to ensure consistent input/output sizes

@@ -1,0 +1,14 @@
+{
+    "name": "(1)StepCoEvHillClimber",
+    "repetitions": 5,
+    "num_generations": 12,
+    "sigma": 0.1,
+    "steps": 500,
+    "population_size_structures": 20,
+    "population_size_controllers": 10,
+    "mutation_rate_structure": 0.15,
+    "mutation_rate_controller": 0.15,
+    "controller": "NeuralController",
+    "scenario": "CaveCrawler-v0",
+    "time": "D10_M05_02_46"
+}
