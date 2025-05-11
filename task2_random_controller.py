@@ -29,7 +29,7 @@ MU = 5  # Number of parents
 LAMBDA = 20  # Number of offspring
 
 # Mutation Params
-MUTATION_RATE = 0.10  # Probability of mutation
+MUTATION_RATE = 0.15  # Probability of mutation
 
 # Selection Params
 TOURNAMENT_SIZE = 4  # Number of individuals in the tournament for selection
@@ -37,7 +37,7 @@ ELITISM = True  # Whether to use elitism or not
 ELITE_SIZE = 1  # Number of elite individuals to carry over to the next generation
 
 # -- For Robot Eval ---
-MULTIPROCESSING = False  # Whether to use multiprocessing or not
+MULTIPROCESSING = True  # Whether to use multiprocessing or not
 
 # ---- Fixed Robot Structure ----
 robot_structure = np.array([
@@ -711,7 +711,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(OPT)(Task1)BestGATask1_10MR",
+        "name": "(OPT)(Task1)BestGATask1_16Neurons",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
