@@ -18,8 +18,8 @@ from copy import deepcopy
 
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 20
-STRUCTURE_POP_SIZE = 10
+NUM_GENERATIONS = 12
+STRUCTURE_POP_SIZE = 20
 CONTROLLER_POP_SIZE = 10
 STEPS = 500
 
@@ -44,7 +44,7 @@ ELITE_SIZE_STRUCTURES = 1
 MULTIPROCESSING = True
 
 # ---- TESTING SETTINGS ----
-SCENARIO = "GapJumper-v0"
+SCENARIO = "CaveCrawler-v0"
 
 SCENARIOS = [
     "GapJumper-v0",
@@ -638,14 +638,14 @@ def step_coevolution(
                 return fitness_scores
 
             # -------- Inner-loop Controller Optimization --------
-            # trained_params, fit = _hill_climber_controller_learning_loop(offspring, ctrl_init,
-            #                                                             learn_steps=controller_inner_loop_generations,
-            #                                                             evaluate_fn=eval_fn)
+            trained_params, fit = _hill_climber_controller_learning_loop(offspring, ctrl_init,
+                                                                         learn_steps=controller_inner_loop_generations,
+                                                                         evaluate_fn=eval_fn)
 
-            trained_params, fit = _genetic_algorithm_controller_learning_loop(
-                offspring, ctrl_init,
-                generations=controller_inner_loop_generations,
-                evaluate_pop_fn=eval_pop_fn)
+            #trained_params, fit = _genetic_algorithm_controller_learning_loop(
+            #    offspring, ctrl_init,
+            #    generations=controller_inner_loop_generations,
+            #    evaluate_pop_fn=eval_pop_fn)
 
             # ----------------------------------------------------
             # Innovation protection - protect newer structures which have not evolved good controllers yet
@@ -709,7 +709,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(1)StepCoEvBestStructT1",
+        "name": "(1)StepCoEvHillClimber",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -763,7 +763,7 @@ if __name__ == "__main__":
          best_fitness_history,
          average_fitness_history,
          best_structs_history
-         ) = step_coevolution(num_generations=1, controller_inner_loop_generations=20)
+         ) = step_coevolution(num_generations=12, controller_inner_loop_generations=40)
 
         # Recreate env from best structure to ensure consistent input/output sizes
         connectivity = get_full_connectivity(all_time_best_struct)
