@@ -1,0 +1,15 @@
+{
+    "name": "(OPT)(Task1)BestGATask1_16Neurons",
+    "repetitions": 5,
+    "num_generations": 250,
+    "sigma": 0.1,
+    "alpha": 0.25,
+    "steps": 500,
+    "population_size": 20,
+    "mutation_rate": 0.15,
+    "mu": 5,
+    "lamb": 20,
+    "controller": "NeuralController",
+    "scenario": "ObstacleTraverser-v0",
+    "time": "D10_M05_10_08"
+}

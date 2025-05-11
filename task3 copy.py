@@ -18,7 +18,7 @@ from copy import deepcopy
 
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 12
+NUM_GENERATIONS = 20
 STRUCTURE_POP_SIZE = 20
 CONTROLLER_POP_SIZE = 10
 STEPS = 500
@@ -36,9 +36,9 @@ SIGMA = 0.1
 # ---- SELECTION PARAMETERS ----
 TOURNAMENT_SIZE = 3
 ELITISM_CONTROLLERS = True
-ELITE_SIZE_CONTROLLERS = 1
+ELITE_SIZE_CONTROLLERS = 2
 ELITISM_STRUCTURES = True
-ELITE_SIZE_STRUCTURES = 1
+ELITE_SIZE_STRUCTURES = 2
 
 
 MULTIPROCESSING = True
@@ -638,9 +638,9 @@ def step_coevolution(
                 return fitness_scores
 
             # -------- Inner-loop Controller Optimization --------
-            trained_params, fit = _hill_climber_controller_learning_loop(offspring, ctrl_init,
-                                                                         learn_steps=controller_inner_loop_generations,
-                                                                         evaluate_fn=eval_fn)
+            #trained_params, fit = _hill_climber_controller_learning_loop(offspring, ctrl_init,
+            #                                                             learn_steps=controller_inner_loop_generations,
+            #                                                             evaluate_fn=eval_fn)
 
             #trained_params, fit = _genetic_algorithm_controller_learning_loop(
             #    offspring, ctrl_init,
@@ -692,6 +692,57 @@ def step_coevolution(
     return all_time_best_struct, all_time_best_params, all_time_best_fit, best_fitness_history, average_fitness_history, best_structs_history
 
 
+def random_search_coevolution(num_generations=NUM_GENERATIONS, structure_pop_size=STRUCTURE_POP_SIZE, controller_pop_size=CONTROLLER_POP_SIZE):
+    best_structure = None
+    best_controller = None
+    best_fitness_ever = -float('inf')
+    best_fitness_history = []
+    average_fitness_history = []
+
+    for generation in range(num_generations):
+        best_gen_fitness = -float('inf')
+        # generate random structure population
+
+        structure_population = [generate_valid_robot()
+                                for _ in range(structure_pop_size)]
+
+        # generate random controller for each structure
+
+        pairs = []
+        for structure in structure_population:
+            struct_brain = get_brain_for_structure(structure)
+            param_size = sum(p.numel() for p in struct_brain.parameters())
+            random_controllers = [np.random.randn(
+                param_size) for _ in range(controller_pop_size)]
+            for controller in random_controllers:
+                pairs.append((structure, controller))
+
+        print(f"Evaluating {len(pairs)} pairs...")
+        # evaluate fitness
+        fitness_scores, rewards = evaluate_pairs(pairs)
+
+        # track best fitness
+        best_idx = np.argmax(fitness_scores)
+        best_gen_fitness = fitness_scores[best_idx]
+        best_gen_structure = pairs[best_idx][0]
+        best_gen_controller = pairs[best_idx][1]
+
+        # update best fitness ever
+        if best_gen_fitness > best_fitness_ever:
+            best_fitness_ever = best_gen_fitness
+            best_structure = best_gen_structure
+            best_controller = best_gen_controller
+
+        # track history
+        best_fitness_history.append(best_gen_fitness)
+        average_fitness_history.append(np.mean(fitness_scores))
+
+        print(f"Gen {generation+1}/{num_generations} | Best Fit: {best_gen_fitness:.4f} | Avg Fit: {np.mean(fitness_scores):.4f}")
+
+    print(f"Best fitness ever: {best_fitness_ever:.4f}")
+    return best_structure, best_controller, best_fitness_ever, best_fitness_history, average_fitness_history
+
+
 def setup_run(seed):
     np.random.seed(seed)
     random.seed(seed)
@@ -709,7 +760,7 @@ if __name__ == "__main__":
     experiment_info = {
         # ***********************************************************************************
         # Change this to the name of the experiment. Will be used in the folder name.
-        "name": "(1)StepCoEvHillClimber",
+        "name": "(0)CoEvGABiggerElitismImproveBestStructures",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
         "num_generations": NUM_GENERATIONS,
@@ -757,13 +808,17 @@ if __name__ == "__main__":
 
         start_time = time.time()
 
+        # Run the coevolutionary algorithm
         (all_time_best_struct,
          all_time_best_params,
          all_time_best_fit,
          best_fitness_history,
          average_fitness_history,
-         best_structs_history
-         ) = step_coevolution(num_generations=12, controller_inner_loop_generations=40)
+         ) = step_coevolution(
+             num_generations=20,
+             controller_inner_loop_generations=10,
+             structure_protection_window=5,
+        )
 
         # Recreate env from best structure to ensure consistent input/output sizes
         connectivity = get_full_connectivity(all_time_best_struct)
