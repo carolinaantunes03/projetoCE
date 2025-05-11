@@ -16,7 +16,7 @@ import utils
 
 
 # ---- PARAMETERS ----
-NUM_GENERATIONS = 250 # Number of generations to evolve
+NUM_GENERATIONS = 250  # Number of generations to evolve
 POPULATION_SIZE = 20  # Number of robots per generation
 STEPS = 500
 
@@ -49,9 +49,8 @@ robot_structure = np.array([
 ])
 
 
-
 # ---- TESTING SETTINGS ----
-SCENARIO = "ObstacleTraverser-v0"
+SCENARIO = "DownStepper-v0"
 
 SCENARIOS = [
     "DownStepper-v0",
@@ -141,13 +140,6 @@ def evaluate_fitness(weights, view=False):
                 viewer.render('screen')
             state, reward, terminated, truncated, info = env.step(action)
 
-            time = sim.get_time()
-            vel = sim.object_vel_at_time(time, "robot")
-            vel_at_t = np.mean(vel, axis=1)
-
-            t_velocity_x += vel_at_t[0]
-            t_velocity_y += vel_at_t[1]
-
             t_reward += reward
             max_step_reward = max(max_step_reward, reward)
 
@@ -158,14 +150,7 @@ def evaluate_fitness(weights, view=False):
 
         viewer.close()
         env.close()
-
-        total_time = sim.get_time()
-
-        avg_velocity_x = t_velocity_x / t
-        avg_velocity_y = t_velocity_y / t
-
-        time_penalty_factor = 0.05
-        fitness_val = t_reward 
+        fitness_val = t_reward
 
         return fitness_val, t_reward
 
@@ -421,9 +406,7 @@ def cma_es(populationSize=POPULATION_SIZE, muRatio=0.5):
 
         # 5. Update covariance based on the selected solutions and the cumulative path of successful mutations
 
-        # This is a simplified version of the covariance update step
-
-        covariance = np.cov(selected_solutions, rowvar=False) 
+        covariance = np.cov(selected_solutions, rowvar=False)
 
         # 6. Update stepSize based on the cumulative path of successful mutations and the dampFactor
 
@@ -463,7 +446,7 @@ def cma_es(populationSize=POPULATION_SIZE, muRatio=0.5):
     )
 
 
-# --- GENETIC ALGORITHM FROM TASK 1 ---
+# --- GENETIC ALGORITHM ---
 def evolutionary_algorithm(elitism=ELITISM):
 
     population = []
@@ -520,7 +503,7 @@ def evolutionary_algorithm(elitism=ELITISM):
                 parent1, parent2, alpha=0.6)
             # Apply mutation
             offspring = gaussian_dist_mutation(weight_vector=offspring,
-                                               MUTATION_RATE=MUTATION_RATE, sigma=0.3)
+                                               MUTATION_RATE=MUTATION_RATE, sigma=0.1)
 
             # **************************************************************************************
 
@@ -587,7 +570,7 @@ def differential_evolution(pop_size=POPULATION_SIZE, scale=0.5, cr=0.5, mutant_s
     best_fitness_idx = np.argmax(fitness_scores)
     best_fitness = fitness_scores[best_fitness_idx]
     best_params = population[best_fitness_idx].copy()
-    # Correctly initialize best_reward based on initial population
+
     # Use the reward corresponding to the best fitness
     best_reward = rewards[best_fitness_idx]
 
@@ -601,7 +584,7 @@ def differential_evolution(pop_size=POPULATION_SIZE, scale=0.5, cr=0.5, mutant_s
         f"Initial best fitness: {best_fitness:.2f}, Initial avg fitness: {average_fitness_history[0]:.2f}")
 
     for generation in range(NUM_GENERATIONS):
-        trial_vectors = []  # Collect trial vectors for batch evaluation
+        trial_vectors = []  # Collect trial vectors for evaluation
 
         # Generate trial vectors for the entire population
         for i in range(pop_size):
@@ -710,7 +693,6 @@ if __name__ == "__main__":
 
     experiment_info = {
         # ***********************************************************************************
-        # Change this to the name of the experiment. Will be used in the folder name.
         "name": "(OPT)(Task1)BestGATask1_16Neurons",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
@@ -769,7 +751,7 @@ if __name__ == "__main__":
             average_fitness_history,
             best_reward_history,
             average_reward_history,
-        ) = evolutionary_algorithm ()
+        ) = evolutionary_algorithm()
         # ***********************************************************************************
 
         end_time = time.time()

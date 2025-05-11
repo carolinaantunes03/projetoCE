@@ -23,7 +23,7 @@ def simulate_best_robot(robot_structure, scenario=None, steps=500, controller=al
     action_size = sim.get_dim_action_space('robot')  # Get correct action size
     t_reward = 0
 
-    for t in range(200):  # Simulate for 200 timesteps
+    for t in range(steps):  # Simulate for 200 timesteps
         # Update actuation before stepping
         actuation = controller(action_size, t)
 
@@ -119,57 +119,6 @@ def simulate_best_robot_nn(robot_structure, scenario, steps=500, controller=None
     env.close()
 
     return total_reward
-
-
-def create_gif_nn(weights, brain, robot_structure, scenario, steps, filename='best_robot.gif', duration=0.066):
-    try:
-        connectivity = get_full_connectivity(robot_structure)
-
-        # Convert flat weights array to the list format
-        weights_list = get_param_as_weights(weights, brain)
-        set_weights(brain, weights)
-
-        env = gym.make(scenario, max_episode_steps=steps,
-                       body=robot_structure, connections=connectivity)
-        sim = env.sim
-        viewer = EvoViewer(sim)
-        viewer.track_objects('robot')
-        state = env.reset()[0]
-        frames = []
-
-        t_reward = 0
-
-        frames = []
-        for t in range(400):
-            state_tensor = torch.tensor(
-                state, dtype=torch.float32).unsqueeze(0)
-
-            state_tensor = state_tensor.to(next(brain.parameters()).device)
-
-            # Convert to tensor
-            action = brain(state_tensor).detach(
-            ).numpy().flatten()  # Get action
-
-            state, reward, terminated, truncated, info = env.step(action)
-            t_reward += reward
-            if terminated or truncated:
-                env.reset()
-                break
-            frame = viewer.render('rgb_array')
-            frames.append(frame)
-
-        viewer.close()
-
-        if frames:
-            imageio.mimsave(filename, frames, duration=duration, optimize=True)
-        else:
-            print(
-                f"Warning: No frames generated for GIF '{filename}'. Simulation might have ended immediately.")
-
-    except Exception as e:
-        print(f'Error creating GIF: {e}')
-        import traceback
-        traceback.print_exc()
 
 
 def create_gif_brain(robot_structure, brain, filename='best_robot.gif', duration=0.066, scenario=None, steps=500):

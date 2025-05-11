@@ -17,7 +17,6 @@ from evogym import (
     is_connected,
 )
 from crossover_operators import one_point_crossover, uniform_crossover
-from genetic_programming import GPTree, ramped_half_and_half_init_pop
 from mutation_operators import flip_mutation, swap_mutation
 import utils
 from fixed_controllers import *
@@ -356,124 +355,7 @@ def evolutionary_algorithm(elitism=ELITISM):
         best_reward_history,
         average_reward_history,
     )
-
-# ----------Genetic Programming - Generation Expression Trees--------------------------------------------------------
-
-
-MIN_GP_TREE_DEPTH = 1
-MAX_GP_TREE_DEPTH = 4
-
-
-def standard_gp(elitism=ELITISM):
-    population: List[GPTree] = ramped_half_and_half_init_pop(min_depth=MIN_GP_TREE_DEPTH, mutation_rate=MUTATION_RATE, crossover_rate=0.80,
-                                                             max_depth=MAX_GP_TREE_DEPTH, pop_size=POPULATION_SIZE)
-
-    robot_pop = [tree.decode_to_robot((5, 5)) for tree in population]
-
-    fitness_scores, reward_scores = evaluate_population_fitness(robot_pop)
-
-    # initialize overall best tracking
-
-    best_initial_fitness_idx = np.argmax(fitness_scores)
-    best_initial_reward_idx = np.argmax(reward_scores)
-
-    best_reward = reward_scores[best_initial_reward_idx]
-    best_fitness = fitness_scores[best_initial_fitness_idx]
-    best_robot = robot_pop[best_initial_fitness_idx]
-    best_robot_tree = population[best_initial_fitness_idx]
-
-    best_fitness_history = []
-    average_fitness_history = []
-    best_reward_history = []
-    average_reward_history = []
-
-    for generation in range(NUM_GENERATIONS):
-        nextgen_pop = []
-
-        best_gen_fitness = -float("inf")
-        best_gen_reward = -float("inf")
-
-        # Elitism
-        if elitism == True:
-            # Get indices sorted by fitness
-            sorted_indices = np.argsort(fitness_scores)[::-1]
-
-            elites = [population[i] for i in sorted_indices[:ELITE_SIZE]]
-
-            # Add elites to the new population
-            nextgen_pop.extend(elites)
-
-        while len(nextgen_pop) < POPULATION_SIZE:
-            # Select parents using tournament selection
-            parent1 = tournament_selection(population, fitness_scores)
-            parent2 = tournament_selection(population, fitness_scores)
-
-            # Create copies to generate offspring
-            offspring1 = copy.deepcopy(parent1)
-            # Need a copy of parent2 for crossover
-            offspring2 = copy.deepcopy(parent2)
-
-            # Crossover modifies offspring1 in-place using offspring2
-            offspring1.crossover(offspring2)
-            offspring1.mutation()
-
-            nextgen_pop.append(offspring1)
-
-        # Generational Strategy?
-
-        population = nextgen_pop
-
-        robot_pop = [tree.decode_to_robot((5, 5)) for tree in population]
-
-        # --- Add Logging Here ---
-        connected_count = sum(1 for robot in robot_pop if is_connected(robot))
-        disconnected_perc = (1 - (connected_count / POPULATION_SIZE)) * 100
-        print(f"Gen. {generation + 1} Disconnected: {disconnected_perc:.1f}%")
-        # --- End Logging ---
-
-        fitness_scores, rewards = evaluate_population_fitness(robot_pop)
-        best_fitness_idx = np.argmax(fitness_scores)
-        best_reward_idx = np.argmax(rewards)
-
-        # Update best fitness and robot if needed
-        if fitness_scores[best_fitness_idx] > best_fitness:
-            best_fitness = fitness_scores[best_fitness_idx]
-            best_robot = robot_pop[best_fitness_idx]
-            best_robot_tree = population[best_fitness_idx]
-
-        if fitness_scores[best_fitness_idx] > best_gen_fitness:
-            best_gen_fitness = fitness_scores[best_fitness_idx]
-
-        if rewards[best_reward_idx] > best_reward:
-            best_reward = rewards[best_reward_idx]
-
-        if rewards[best_reward_idx] > best_gen_reward:
-            best_gen_reward = rewards[best_reward_idx]
-
-        average_fitness = np.mean(fitness_scores)
-        average_reward = np.mean(rewards)
-
-        best_fitness_history.append(best_gen_fitness)
-        average_fitness_history.append(average_fitness)
-        best_reward_history.append(best_gen_reward)
-        average_reward_history.append(average_reward)
-
-        print(
-            # Use best_gen_fitness and best_gen_reward for generation-specific reporting
-            f"Gen. {generation + 1} | Curr.Fit. = {fitness_scores[best_fitness_idx]:.2f} | BestFitGen. = {best_gen_fitness:.2f} | BestFitOvr. = {best_fitness:.2f} | Avg.Fit. = {average_fitness:.2f} | BestRewardGen = {best_gen_reward:.2f} | Avg.Reward = {average_reward:.2f}"
-        )
-
-        print(f"Best robot tree:\n {best_robot_tree.print_tree()}")
-        print(f"Best robot structure:\n {best_robot}")
-
-    return (
-        best_robot,
-        best_fitness,
-        best_fitness_history,
-        average_fitness_history,
-        best_reward_history,
-        average_reward_history,
-    )
+# -------------------------------------------------------------------------------------
 
 
 def setup_run(seed):
@@ -482,7 +364,6 @@ def setup_run(seed):
     torch.manual_seed(seed)
 
 
-# Choose which approach to run:
 if __name__ == "__main__":
 
     multiprocessing.freeze_support()  # For Windows compatibility
@@ -492,7 +373,6 @@ if __name__ == "__main__":
 
     experiment_info = {
         # ***********************************************************************************
-        # Change this to the name of the experiment. Will be used in the folder name.
         "name": "(0)RandomSearch",
         # ***********************************************************************************
         "repetitions": len(RUN_SEEDS),
@@ -554,7 +434,6 @@ if __name__ == "__main__":
 
         start_time = time.time()
         # **********************************************************************
-        # Change the algorithm to be tested here.
         (
             best_robot,
             best_fitness,
