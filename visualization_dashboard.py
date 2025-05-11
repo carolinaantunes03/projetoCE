@@ -628,8 +628,9 @@ if selected_task and selected_env and selected_experiment_name:
 
                     # Display both fitness and reward for this run
                     if run_data.get('best_fitness_history'):
-                        final_fitness = run_data['best_fitness_history'][-1]
-                        st.caption(f"Fitness: {final_fitness:.4f}")
+                        best_fitness = max(
+                            run_data['best_fitness_history'], default=0)
+                        st.caption(f"Fitness: {best_fitness:.4f}")
 
                     if run_data.get('best_reward_history'):
                         final_reward = run_data['best_reward_history'][-1]
